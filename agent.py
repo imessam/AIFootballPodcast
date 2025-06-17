@@ -30,8 +30,6 @@ MODEL_GEMINI_2_0_FLASH = "gemini-2.0-flash"
 
 async def main():
 
-    global root_agent
-
     try:
         app_name = "weather_tutorial_app"
         user_id = "user_1"
