@@ -10,10 +10,9 @@ import logging
 
 logging.basicConfig(level=logging.ERROR)
 
-from google.adk.agents import Agent
 from dotenv import load_dotenv
 
-from modules.tools import *
+from modules.agents_podcast import PodcastAgents
 from modules.callbacks import *
 from modules.utils import *
 
@@ -31,54 +30,19 @@ MODEL_GEMINI_2_0_FLASH = "gemini-2.0-flash"
 async def main():
 
     try:
-        app_name = "weather_tutorial_app"
-        user_id = "user_1"
-        session_id = "session_001"
-
        
-        greetings_agent = Agent(
-            name="greetings_agent",
-            model=MODEL_GEMINI_2_0_FLASH,
-            description="Handles simple greetings and hellos using the 'say_hello' tool.",
-            instruction="You are the Greeting Agent. Your ONLY task is to provide a friendly greeting to the user. "
-                    "Use the 'say_hello' tool to generate the greeting. "
-                    "If the user provides their name, make sure to pass it to the tool. "
-                    "Do not engage in any other conversation or tasks.",
-            tools=[say_hello],
-            before_model_callback=block_keyword_guardrail,
-            before_tool_callback=block_paris_tool_guardrail
-        )
-        farwell_agent = Agent(
-            name="farwell_agent",
-            model=MODEL_GEMINI_2_0_FLASH,
-            description="Handles simple farewells using the 'say_goodbye' tool.",
-            instruction="You are the Farewell Agent. Your ONLY task is to provide a friendly farewell to the user. "
-                    "Use the 'say_goodbye' tool to generate the farewell. "
-                    "Do not engage in any other conversation or tasks.",
-            tools=[say_goodbye],
-            before_model_callback=block_keyword_guardrail,
-            before_tool_callback=block_paris_tool_guardrail
-        )
+        app_name = "Podcast"
+        user_id = "user-123"
+        session_id = "session-123"
 
-        root_agent = Agent(
-            name="weather_agent_v2", # Give it a new version name
-            model=MODEL_GEMINI_2_0_FLASH, # Use the same model=root_agent_model,
-            description="The main coordinator agent. Handles weather requests and delegates greetings/farewells to specialists.",
-            instruction="You are the main Weather Agent coordinating a team. Your primary responsibility is to provide weather information. "
-                        "Use the 'get_weather' tool ONLY for specific weather requests (e.g., 'weather in London'). "
-                        "You have specialized sub-agents: "
-                        "1. 'greeting_agent': Handles simple greetings like 'Hi', 'Hello'. Delegate to it for these. "
-                        "2. 'farewell_agent': Handles simple farewells like 'Bye', 'See you'. Delegate to it for these. "
-                        "Analyze the user's query. If it's a greeting, delegate to 'greeting_agent'. If it's a farewell, delegate to 'farewell_agent'. "
-                        "If it's a weather request, handle it yourself using 'get_weather'. "
-                        "For anything else, respond appropriately or state you cannot handle it.",
-            tools=[get_weather_stateful], # Root agent still needs the weather tool for its core task
-            before_model_callback=block_keyword_guardrail,
-            before_tool_callback=block_paris_tool_guardrail,
-            # Key change: Link the sub-agents here!
-            sub_agents=[greetings_agent, farwell_agent],
-            output_key="last_weather_report"
-        )
+        podcast_agent_object = PodcastAgents(app_name, user_id, session_id)
+
+        root_agent = podcast_agent_object.coordinator_agent
+
+        if root_agent is None:
+            print("Error: Root agent not initialized.")
+            return
+
 
         # Define initial state data - user prefers Celsius initially
         initial_state = {
