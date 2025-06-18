@@ -1,59 +1,17 @@
-from typing import Optional # Make sure to import Optional
+import os
+import requests
+
+from datetime import datetime
+from typing import Dict, Literal, Union, Optional
+from dotenv import load_dotenv
+
 from google.adk.tools.tool_context import ToolContext
+from google.adk.tools import google_search  # Import the tool
 
 
+load_dotenv()
 
-
-# @title Define the get_weather Tool
-def get_weather(city: str) -> dict:
-    """Retrieves the current weather report for a specified city.
-
-    Args:
-        city (str): The name of the city (e.g., "New York", "London", "Tokyo").
-
-    Returns:
-        dict: A dictionary containing the weather information.
-              Includes a 'status' key ('success' or 'error').
-              If 'success', includes a 'report' key with weather details.
-              If 'error', includes an 'error_message' key.
-    """
-    print(f"--- Tool: get_weather called for city: {city} ---") # Log tool execution
-    city_normalized = city.lower().replace(" ", "") # Basic normalization
-
-    # Mock weather data
-    mock_weather_db = {
-        "newyork": {"status": "success", "report": "The weather in New York is sunny with a temperature of 25°C."},
-        "london": {"status": "success", "report": "It's cloudy in London with a temperature of 15°C."},
-        "tokyo": {"status": "success", "report": "Tokyo is experiencing light rain and a temperature of 18°C."},
-    }
-
-    if city_normalized in mock_weather_db:
-        return mock_weather_db[city_normalized]
-    else:
-        return {"status": "error", "error_message": f"Sorry, I don't have weather information for '{city}'."}
-    
-
-def say_hello(name: Optional[str] = None) -> str:
-    """Provides a simple greeting. If a name is provided, it will be used.
-
-    Args:
-        name (str, optional): The name of the person to greet. Defaults to a generic greeting if not provided.
-
-    Returns:
-        str: A friendly greeting message.
-    """
-    if name:
-        greeting = f"Hello, {name}!"
-        print(f"--- Tool: say_hello called with name: {name} ---")
-    else:
-        greeting = "Hello there!" # Default greeting if name is None or not explicitly passed
-        print(f"--- Tool: say_hello called without a specific name (name_arg_value: {name}) ---")
-    return greeting
-
-def say_goodbye() -> str:
-    """Provides a simple farewell message to conclude the conversation."""
-    print(f"--- Tool: say_goodbye called ---")
-    return "Goodbye! Have a great day."
+print(f"FOOTBALL_DATA_API Key set: {'Yes' if os.environ.get('FOOTBALL_DATA_API_KEY') and os.environ['FOOTBALL_DATA_API_KEY'] != 'FOOTBALL_DATA_API_KEY' else 'No (REPLACE PLACEHOLDER!)'}")
 
 
 def fetch_matches(date: str, tool_context: ToolContext) -> dict:
@@ -128,3 +86,95 @@ def get_weather_stateful(city: str, tool_context: ToolContext) -> dict:
         print(f"--- Tool: City '{city}' not found. ---")
         return {"status": "error", "error_message": error_msg}
 
+
+
+def get_matches_by_date(date_str: str | None, tool_context: ToolContext) -> Dict[str, Union[str, Dict]]:
+
+    """
+        Fetches all matches for a given date from the Football Data API.
+        Args:
+            date (str or None): The date to fetch matches for in the format YYYY-MM-DD. If not provided, the current date is used. The date must not be in the future.
+        Returns:
+            result (dict): A dictionary with a status key set to "success" in case matches are found, "error" in case no matches are found. 
+            In case of matches are found, the result will contain a dictionary with match ID as the key,
+            and a dictionary containing the competition, home team, away team, home score and away score as the value if matches are found,
+            or an error message if no matches are found.
+    """
+
+    tool_name = "get_matches_by_date"
+    agent_name = tool_context.agent_name
+
+    result: Dict[str, Union[str, Dict]] = {"status": "success"}
+
+    print(f"--- Tool : {tool_name} called for date: {date_str} by agent: {agent_name} ---")
+
+    date = datetime.now()
+    current_date = datetime.now().date()
+    
+    if date_str is not None:
+        date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    
+    if date > current_date:
+        return {"error": f"Date must not be in the future, provided date: {date}, current date: {current_date}"}
+        
+    date_formatted = date.strftime("%Y-%m-%d")
+
+    print(f"--- Tool : {tool_name} Fetching matches for date: {date_formatted}, current date: {current_date}")
+
+    api_key = os.getenv("FOOTBALL_DATA_API_KEY")
+
+    uri = f"https://api.football-data.org/v4/matches/?date={date_formatted}"
+
+    print(f"--- Tool : {tool_name} URI: {uri}")
+
+    headers = { 'X-Auth-Token': api_key }
+
+    response = requests.get(uri, headers=headers)
+
+    response_json = response.json()
+
+    error_code = response_json.get("errorCode", -1)
+
+    if error_code > 0:
+
+        result["status"] = "error"
+        result["error"] = f"API error code : {error_code}, response: {response_json}"
+
+        return result
+
+    matches = response_json.get("matches", [])
+
+    if len(matches) == 0:
+
+        result["status"] = "error"
+        result["error"] = f"No matches found for date: {date}"
+
+        return result
+    
+    matches_dict = {}
+
+    for match in matches:
+
+        competition = match["competition"]["name"]
+
+        home_team = match["homeTeam"]["name"]
+        away_team = match["awayTeam"]["name"]
+
+        score = match["score"]["fullTime"]
+
+        home_score = score["home"]
+        away_score = score["away"]
+
+        matches_dict[str(match["id"])] = {
+            "competition": competition,
+            "home_team": home_team,
+            "away_team": away_team,
+            "home_score": home_score,
+            "away_score": away_score
+        }
+
+    print(f"--- Tool : {tool_name} Matches found: {matches_dict} ---")
+
+    result["matches"] = matches_dict
+
+    return result
