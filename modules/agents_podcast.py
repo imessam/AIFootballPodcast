@@ -9,7 +9,7 @@ import logging
 
 logging.basicConfig(level=logging.ERROR)
 
-from google.adk.agents import Agent
+from google.adk.agents import Agent, SequentialAgent, ParallelAgent
 from dotenv import load_dotenv
 
 from modules.tools import *
@@ -29,18 +29,18 @@ MODEL_GEMINI_2_0_FLASH = "gemini-2.0-flash"
 
 class PodcastAgents:
     def __init__(self, 
-                 coordinator_model : str = MODEL_GEMINI_2_0_FLASH,
+                 matches_fetcher_model : str = MODEL_GEMINI_2_0_FLASH,
                  web_search_model : str = MODEL_GEMINI_2_0_FLASH,
                  podcast_writer_model : str = MODEL_GEMINI_2_0_FLASH,
                  text_to_speech_model : str = MODEL_GEMINI_2_0_FLASH):
         
-        self.coordinator_model = coordinator_model
+        self.matches_fetcher_model = matches_fetcher_model
         self.web_search_model = web_search_model
         self.podcast_writer_model = podcast_writer_model
         self.text_to_speech_model = text_to_speech_model
 
-        self.coordinator_agent = None
-        self.web_search_agent = None
+        self.matches_fetcher_agent = None
+        self.web_search_parallel_agents = None
         self.podcast_writer_agent = None
         self.text_to_speech_agent = None
 
@@ -51,15 +51,16 @@ class PodcastAgents:
         self.session_service = None
         self.runner : Runner
 
-    def _create_coordinator_agent(self, custom_instruction : str) -> bool:
+    def _create_matches_fetcher_agent(self, custom_instruction : str) -> bool:
 
-        name = "coordinator_agent"
-        description = "Handles the coordination of the podcast agents."
-        tools = []
+        name = "matches_fetcher"
+        description = "Fetches matches from the given tool."
+        tools = [fetch_matches]
+        output_key = "matches"
 
         default_instruction = """
-                                You are the Coordinator Agent.
-                                Your ONLY task is to coordinate the podcast agents.
+                                You are the Match Fetcher Agent.
+                                Your ONLY task is to fetch matches from the given fetch_matches tool.
                                 Do not engage in any other conversation or tasks.
                             """
 
@@ -70,12 +71,13 @@ class PodcastAgents:
         try:
             self.coordinator_agent = Agent(
                 name = name,
-                model = self.coordinator_model,
+                model = self.matches_fetcher_model,
                 description = description,
                 instruction = instruction,
-                tools = tools,
+                tools = [*tools],
                 before_model_callback = None,
-                before_tool_callback = None
+                before_tool_callback = None,
+                output_key = output_key
             )
         except Exception as e:
             print(f"Error creating {name}: {e}")
@@ -85,9 +87,9 @@ class PodcastAgents:
 
         return True
     
-    def _create_web_search_agent(self, custom_instruction : str) -> bool:
+    def _create_web_search_parallel_agents(self, custom_instruction : str) -> bool:
 
-        name = "web_search_agent"
+        name = "web_search_parallel_agents"
         description = "Performs web searches."
         tools = []
         output_key = "web_search_results"
@@ -104,7 +106,7 @@ class PodcastAgents:
         print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
 
         try:
-            self.web_search_agent = Agent(
+            self.web_search_parallel_agents = Agent(
                 name = name,
                 model = self.web_search_model,
                 description = description,
@@ -199,15 +201,37 @@ class PodcastAgents:
 
         print(f"Creating agents with custom instructions: {custom_instructions}")
 
-        coordinator_instruction = custom_instructions.get("coordinator", "")
+        matches_fetcher_instruction = custom_instructions.get("matches_fetcher", "")
         web_search_instruction = custom_instructions.get("web_search", "")
         podcast_writer_instruction = custom_instructions.get("podcast_writer", "")
         text_to_speech_instruction = custom_instructions.get("text_to_speech", "")
 
-        self._create_coordinator_agent(coordinator_instruction)
-        self._create_web_search_agent(web_search_instruction)
+        self._create_matches_fetcher_agent(matches_fetcher_instruction)
+        self._create_web_search_parallel_agents(web_search_instruction)
         self._create_podcast_writer_agent(podcast_writer_instruction)
         self._create_text_to_speech_agent(text_to_speech_instruction)
+
+        if not self.matches_fetcher_agent:
+            print(f"Error: Matches fetcher agent not created ... ")
+            return
+
+        if not self.web_search_parallel_agents:
+            print(f"Error: Web search agent not created ... ")
+            return
+
+        if not self.podcast_writer_agent:
+            print(f"Error: Podcast writer agent not created ... ")
+            return
+
+        if not self.text_to_speech_agent:
+            print(f"Error: Text to speech agent not created ... ")
+            return
+
+        self.sequential_agent = SequentialAgent(
+            name = "podcast_generation_pipeline",
+            description = "Executes the podcast generation pipeline sequentially.",
+            sub_agents = [self.matches_fetcher_agent, self.web_search_parallel_agents, self.podcast_writer_agent, self.text_to_speech_agent],
+        )
 
         print("Agents created successfully.")
 
