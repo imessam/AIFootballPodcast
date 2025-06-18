@@ -2,7 +2,7 @@ import logging
 
 logging.basicConfig(level=logging.ERROR)
 
-from google.adk.agents import Agent
+from google.adk.agents import BaseAgent
 from google.adk.sessions import InMemorySessionService
 from google.adk.runners import Runner
 from google.genai import types # For creating message Content/Parts
@@ -44,7 +44,7 @@ async def create_session(app_name : str,
     return session_service
 
 
-def create_runner(agent : Agent, 
+def create_runner(agent : BaseAgent, 
                   session_service : InMemorySessionService, 
                   app_name : str) -> Runner:
 

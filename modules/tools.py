@@ -2,7 +2,7 @@ import os
 import requests
 
 from datetime import datetime
-from typing import Dict, Literal, Union, Optional
+from typing import Dict, Union
 from dotenv import load_dotenv
 
 from google.adk.tools.tool_context import ToolContext
@@ -12,34 +12,6 @@ from google.adk.tools import google_search  # Import the tool
 load_dotenv()
 
 print(f"FOOTBALL_DATA_API Key set: {'Yes' if os.environ.get('FOOTBALL_DATA_API_KEY') and os.environ['FOOTBALL_DATA_API_KEY'] != 'FOOTBALL_DATA_API_KEY' else 'No (REPLACE PLACEHOLDER!)'}")
-
-
-def fetch_matches(date: str, tool_context: ToolContext) -> dict:
-   
-   """Retrieves a list of matches for a specific date.
-
-   Args:
-       date (str): The date for which to fetch matches.
-
-   Returns:
-       dict: A dictionary containing the matches information.
-             Includes a 'status' key ('success' or 'error').
-             If 'success', includes a 'matches' key with the list of matches.
-             If 'error', includes an 'error_message' key.
-   """
-   print(f"--- Tool: fetch_matches called for date: {date} ---") # Log tool execution
-   # Mock matches data
-   mock_matches_db = {
-       "2023-06-01": {"status": "success", "matches": ["Match 1", "Match 2", "Match 3"]},
-       "2023-06-02": {"status": "success", "matches": ["Match 4", "Match 5", "Match 6"]},
-       "2023-06-03": {"status": "success", "matches": ["Match 7", "Match 8", "Match 9"]},
-   }
-
-   if date in mock_matches_db:
-       return mock_matches_db[date]
-   else:
-       return {"status": "error", "error_message": f"Sorry, I don't have matches information for '{date}'."}
-
 
 def get_weather_stateful(city: str, tool_context: ToolContext) -> dict:
     """Retrieves weather, converts temp unit based on session state."""

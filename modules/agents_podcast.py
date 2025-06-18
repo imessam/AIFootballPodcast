@@ -40,7 +40,7 @@ class PodcastAgents:
         self.text_to_speech_model = text_to_speech_model
 
         self.matches_fetcher_agent = None
-        self.web_search_parallel_agents = None
+        self.web_search_agent = None
         self.podcast_writer_agent = None
         self.text_to_speech_agent = None
 
@@ -55,12 +55,25 @@ class PodcastAgents:
 
         name = "matches_fetcher"
         description = "Fetches matches from the given tool."
-        tools = [fetch_matches]
+        tools = [get_matches_by_date]
         output_key = "matches"
 
         default_instruction = """
                                 You are the Match Fetcher Agent.
-                                Your ONLY task is to fetch matches from the given fetch_matches tool.
+                                Your ONLY task is to fetch matches from the given date using the get_matches_by_date tool.
+                                Output the matches in a JSON format like this: 
+                                {
+                                    "match_id": 
+                                        {
+                                            "competition": "competition_name", 
+                                            "home_team": "home_team_name", 
+                                            "away_team": "away_team_name", 
+                                            "home_score": "home_score", 
+                                            "away_score": "away_score"
+                                        }
+                                }
+                                The date is provided in the format YYYY-MM-DD.
+                                If no matches are found, return an empty JSON object: {}.
                                 Do not engage in any other conversation or tasks.
                             """
 
@@ -69,7 +82,7 @@ class PodcastAgents:
         print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
 
         try:
-            self.coordinator_agent = Agent(
+            self.matches_fetcher_agent = Agent(
                 name = name,
                 model = self.matches_fetcher_model,
                 description = description,
@@ -87,18 +100,44 @@ class PodcastAgents:
 
         return True
     
-    def _create_web_search_parallel_agents(self, custom_instruction : str) -> bool:
+    def _create_web_search_agent(self, custom_instruction : str) -> bool:
 
-        name = "web_search_parallel_agents"
+        name = "web_search_agent"
         description = "Performs web searches."
-        tools = []
+        tools = [google_search]
         output_key = "web_search_results"
 
         default_instruction = """
                                 You are the Web Searcher Agent.
                                 Your ONLY task is to search the web.
-                                Use the web search tool only to search the web.
+                                Search the web for information about the matches provided by the Matches Fetcher Agent.
+                                The matches are provided in the format: 
+                                {
+                                    "match_id":
+                                        {
+                                            "competition": "competition_name", 
+                                            "home_team": "home_team_name", 
+                                            "away_team": "away_team_name", 
+                                            "home_score": "home_score", 
+                                            "away_score": "away_score"
+                                        }
+                                }
+                                If you receive an empty JSON object, that means no matches were found, so you should not search the web, you should return an empty JSON object.
+                                Search for the latest news, statistics, and any other relevant information about the matches.
+                                Then, generate a summary of the search results.
+                                Output the results in a JSON format like this: 
+                                {
+                                    "match_id":
+                                        {
+                                            "summary": "summary of the search results",
+                                            "details": "detailed information about the match"
+                                        }
+                                }
+                                If no information is found, return an empty JSON object: {}.
                                 Do not engage in any other conversation or tasks.
+
+                                Here are the matches you need to search for:
+                                {matches}
                             """
 
         instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
@@ -106,12 +145,12 @@ class PodcastAgents:
         print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
 
         try:
-            self.web_search_parallel_agents = Agent(
+            self.web_search_agent = Agent(
                 name = name,
                 model = self.web_search_model,
                 description = description,
                 instruction = instruction,
-                tools = tools,
+                tools = [*tools],
                 before_model_callback = None,
                 before_tool_callback = None,
                 output_key = output_key
@@ -134,7 +173,28 @@ class PodcastAgents:
         default_instruction = """
                                 You are the Podcast Writer Agent.
                                 Your ONLY task is to write podcasts.
+                                You will receive web search results from the Web Search Agent for the matches provided by the Matches Fetcher Agent.
+                                Use the web search results to write a podcast script.
+                                The web search results are provided in the format:
+                                {
+                                    "match_id":
+                                        {
+                                            "summary": "summary of the search results",
+                                            "details": "detailed information about the match"
+                                        }
+                                }
+                                If you receive an empty JSON object, that means no matches were found, so you should not write a podcast script, you should return an empty JSON object.
+                                Write a podcast script for each match.
+                                Each podcast script should be a detailed and engaging narrative about the match, including key moments, player performances, and any other relevant information.
+                                Output the podcast script in a JSON format like this:
+                                {
+                                    "match_id": "podcast_script"
+                                }
+                                If no information is found, return an empty JSON object: {}.
                                 Do not engage in any other conversation or tasks.
+
+                                Here are the matches web search results you need to write podcasts for:
+                                {web_search_results}
                             """
 
         instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
@@ -171,7 +231,21 @@ class PodcastAgents:
         default_instruction = """
                                 You are the Text to Speech Agent.
                                 Your ONLY task is to convert text to speech.
+                                You will receive podcast scripts from the Podcast Writer Agent.
+                                The podcast scripts are provided in the format:
+                                {
+                                    "match_id": "podcast_script"
+                                }
+                                If you receive an empty JSON object, that means no podcast scripts were found, so you should not convert text to speech, you should return an empty JSON object.
+                                Convert the podcast scripts to audio files.
+                                Output the audio files in a JSON format like this:
+                                {
+                                    "match_id": "audio_file_path"
+                                }
+                                If no information is found, return an empty JSON object: {}.
                                 Do not engage in any other conversation or tasks.
+                                Here are the podcast scripts you need to convert to speech:
+                                {podcast_scripts}
                             """
 
         instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
@@ -207,7 +281,7 @@ class PodcastAgents:
         text_to_speech_instruction = custom_instructions.get("text_to_speech", "")
 
         self._create_matches_fetcher_agent(matches_fetcher_instruction)
-        self._create_web_search_parallel_agents(web_search_instruction)
+        self._create_web_search_agent(web_search_instruction)
         self._create_podcast_writer_agent(podcast_writer_instruction)
         self._create_text_to_speech_agent(text_to_speech_instruction)
 
@@ -215,7 +289,7 @@ class PodcastAgents:
             print(f"Error: Matches fetcher agent not created ... ")
             return
 
-        if not self.web_search_parallel_agents:
+        if not self.web_search_agent:
             print(f"Error: Web search agent not created ... ")
             return
 
@@ -230,7 +304,12 @@ class PodcastAgents:
         self.sequential_agent = SequentialAgent(
             name = "podcast_generation_pipeline",
             description = "Executes the podcast generation pipeline sequentially.",
-            sub_agents = [self.matches_fetcher_agent, self.web_search_parallel_agents, self.podcast_writer_agent, self.text_to_speech_agent],
+            sub_agents = [
+                            self.matches_fetcher_agent, 
+                            self.web_search_agent, 
+                            self.podcast_writer_agent, 
+                            #self.text_to_speech_agent
+                          ],
         )
 
         print("Agents created successfully.")
@@ -257,11 +336,11 @@ class PodcastAgents:
             print(f"Error: Session service not initialized ... ")
             return
         
-        if not self.coordinator_agent:
-            print(f"Error: Coordinator agent not initialized ... ")
+        if not self.sequential_agent:
+            print(f"Error: Sequential agent not initialized ... ")
             return
 
-        self.runner = create_runner(self.coordinator_agent, self.session_service, self.app_name)
+        self.runner = create_runner(self.sequential_agent, self.session_service, self.app_name)
 
         print(f"Runner initialized: {self.app_name}, {self.user_id}, {self.session_id}")
 
