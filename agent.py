@@ -27,15 +27,17 @@ print(f"GOOGLE_GENAI_USE_VERTEXAI Key set: {'Yes' if os.environ.get('GOOGLE_GENA
 
 MODEL_GEMINI_2_0_FLASH = "gemini-2.0-flash"
 
+podcast_agent_object = PodcastAgents()
+
+# Create the agents.
+podcast_agent_object.create_agents()
+
+root_agent = podcast_agent_object.sequential_agent
+
 async def main():
 
     try:
-       
-        app_name = "Podcast"
-        user_id = "user-123"
-        session_id = "session-123"
-
-        podcast_agent_object = PodcastAgents(app_name, user_id, session_id)
+        podcast_agent_object = PodcastAgents()
 
         # Create the agents.
         podcast_agent_object.create_agents()
@@ -43,47 +45,23 @@ async def main():
         # Create the session service and runner.
         await podcast_agent_object.init_session()
         await podcast_agent_object.init_runner()
+
+
         runner = podcast_agent_object.runner
+        app_name = podcast_agent_object.app_name
+        user_id = podcast_agent_object.user_id
+        session_id = podcast_agent_object.session_id
+
         if runner is None:
             print("Error: Runner not initialized.")
             return
         
-        await run_conversation(runner, user_id, session_id)
+        await run_conversation("Matches on 2025-05-31",runner, user_id, session_id)
 
-        # # Define initial state data - user prefers Celsius initially
-        # initial_state = {
-        #     "user_preference_temperature_unit": "Celsius"
-        # }
-
-    #     session_service = await create_session(app_name, user_id, session_id, initial_state)
-    #     runner = create_runner(root_agent, session_service, app_name)
-
-    #     session =  session_service.sessions[app_name][user_id][session_id]
-    
-        
-    #     if session: session.state["user_preference_temperature_unit"] = "Fahrenheit"
-        
-    #     await run_conversation(runner, user_id, session_id)
-
-    #      # --- Inspect final session state after the conversation ---
-    #     # This block runs after either execution method completes.
-    #     print("\n--- Inspecting Final Session State ---")
-    #     final_session = await session_service.get_session(app_name=app_name,
-    #                                                         user_id= user_id,
-    #                                                         session_id=session_id)
-    #     if final_session:
-    #         # Use .get() for safer access to potentially missing keys
-    #         print(f"Final Preference: {final_session.state.get('user_preference_temperature_unit', 'Not Set')}")
-    #         print(f"Final Last Weather Report (from output_key): {final_session.state.get('last_weather_report', 'Not Set')}")
-    #         print(f"Final Last City Checked (by tool): {final_session.state.get('last_city_checked_stateful', 'Not Set')}")
-    #         # Print full state for detailed view
-    #         # print(f"Full State Dict: {final_session.state}") # For detailed view
-    #     else:
-    #         print("\n❌ Error: Could not retrieve final session state.")
+        root_agent = podcast_agent_object.sequential_agent
 
     except Exception as e:
         print(f"An error occurred: {e}")
-
 
 if __name__ == "__main__":
     asyncio.run(main())

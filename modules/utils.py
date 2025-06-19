@@ -73,7 +73,7 @@ async def call_agent_async(query: str, runner : Runner, user_id, session_id) -> 
   # We iterate through events to find the final answer.
   async for event in runner.run_async(user_id=user_id, session_id=session_id, new_message=content):
       # You can uncomment the line below to see *all* events during execution
-    #   print(f"  [Event] Author: {event.author}, Type: {type(event).__name__}, Final: {event.is_final_response()}, Content: {event.content}")
+      print(f"  [Event] Author: {event.author}, Type: {type(event).__name__}, Final: {event.is_final_response()}, Content: {event.content}")
 
       # Key Concept: is_final_response() marks the concluding message for the turn.
       if event.is_final_response():
@@ -93,29 +93,21 @@ async def call_agent_async(query: str, runner : Runner, user_id, session_id) -> 
 # @title Run the Initial Conversation
 
 # We need an async function to await our interaction helper
-async def run_conversation(runner : Runner, user_id : str, session_id : str):
-
-    await call_agent_async("Hi there! I'm Mohamed",
-                                       runner=runner,
-                                       user_id=user_id,
-                                       session_id=session_id)
+async def run_conversation(query : str, runner : Runner, user_id : str, session_id : str):
     
-    await call_agent_async("What is the weather like in London?",
-                                       runner=runner,
-                                       user_id=user_id,
-                                       session_id=session_id)
+    """
+    Initiates a conversation session with the agent using the provided runner, user ID, and session ID.
 
-    await call_agent_async("How about Paris?",
-                                       runner=runner,
-                                       user_id=user_id,
-                                       session_id=session_id) # Expecting the tool's error message
+    Args:
+        query (str): The query to be sent to the agent.
+        runner (Runner): The runner object that orchestrates the agent execution.
+        user_id (str): The identifier for the user initiating the conversation.
+        session_id (str): The session identifier for the conversation.
 
-    await call_agent_async("Tell me the weather in New York",
+    This function awaits the agent's response by sending a query via the `call_agent_async` function.
+    """
+
+    await call_agent_async(query,
                                        runner=runner,
                                        user_id=user_id,
-                                       session_id=session_id)
-    
-    await call_agent_async("Farewell!",
-                                       runner=runner,
-                                       user_id=user_id,
-                                       session_id=session_id)
+                                       session_id=session_id) # Expecting the cached response

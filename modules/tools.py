@@ -60,21 +60,26 @@ def get_weather_stateful(city: str, tool_context: ToolContext) -> dict:
 
 
 
-def get_matches_by_date(date_str: str | None, tool_context: ToolContext) -> Dict[str, Union[str, Dict]]:
+def get_matches_by_date(date_str: str , tool_context: ToolContext) -> dict:
 
     """
         Fetches all matches for a given date from the Football Data API.
+
         Args:
-            date (str or None): The date to fetch matches for in the format YYYY-MM-DD. If not provided, the current date is used. The date must not be in the future.
+            date_str (str): The date to fetch matches for in the format YYYY-MM-DD (e.g. "2023-05-31").
         Returns:
-            result (dict): A dictionary with a status key set to "success" in case matches are found, "error" in case no matches are found. 
-            In case of matches are found, the result will contain a dictionary with match ID as the key,
-            and a dictionary containing the competition, home team, away team, home score and away score as the value if matches are found,
-            or an error message if no matches are found.
-    """
+           dict: A dictionary with a status key set to "success" in case matches are found, "error" in case no matches are found. 
+                In case of matches are found, the result will contain a dictionary with match ID as the key,
+                and a dictionary containing the competition, home team, away team, home score and away score as the value if matches are found,
+                or an error message if no matches are found.
+    """ 
+
+    agent_name = ""
+
+    if tool_context is not None:
+        agent_name = tool_context.agent_name
 
     tool_name = "get_matches_by_date"
-    agent_name = tool_context.agent_name
 
     result: Dict[str, Union[str, Dict]] = {"status": "success"}
 

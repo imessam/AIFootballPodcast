@@ -10,6 +10,7 @@ import logging
 logging.basicConfig(level=logging.ERROR)
 
 from google.adk.agents import Agent, SequentialAgent, ParallelAgent
+
 from dotenv import load_dotenv
 
 from modules.tools import *
@@ -26,13 +27,14 @@ print(f"GOOGLE_GENAI_USE_VERTEXAI Key set: {'Yes' if os.environ.get('GOOGLE_GENA
 # --- Define Model Constants for easier use ---
 
 MODEL_GEMINI_2_0_FLASH = "gemini-2.0-flash"
+MODEL_GEMINI_2_5_FLASH_PREVIEW_TTS = "gemini-2.5-flash-preview-tts"
 
 class PodcastAgents:
     def __init__(self, 
                  matches_fetcher_model : str = MODEL_GEMINI_2_0_FLASH,
                  web_search_model : str = MODEL_GEMINI_2_0_FLASH,
                  podcast_writer_model : str = MODEL_GEMINI_2_0_FLASH,
-                 text_to_speech_model : str = MODEL_GEMINI_2_0_FLASH):
+                 text_to_speech_model : str = MODEL_GEMINI_2_5_FLASH_PREVIEW_TTS):
         
         self.matches_fetcher_model = matches_fetcher_model
         self.web_search_model = web_search_model
@@ -43,6 +45,8 @@ class PodcastAgents:
         self.web_search_agent = None
         self.podcast_writer_agent = None
         self.text_to_speech_agent = None
+
+        self.sequential_agent = None
 
         self.app_name = "football_podcast_app"
         self.user_id = "user_1"
@@ -60,20 +64,62 @@ class PodcastAgents:
 
         default_instruction = """
                                 You are the Match Fetcher Agent.
-                                Your ONLY task is to fetch matches from the given date using the get_matches_by_date tool.
-                                Output the matches in a JSON format like this: 
-                                {
-                                    "match_id": 
-                                        {
-                                            "competition": "competition_name", 
-                                            "home_team": "home_team_name", 
-                                            "away_team": "away_team_name", 
-                                            "home_score": "home_score", 
-                                            "away_score": "away_score"
-                                        }
-                                }
+                                Your ONLY task is to fetch matches from the given date using the `get_matches_by_date` tool.
                                 The date is provided in the format YYYY-MM-DD.
+                                You will receive the response as a dictionary with a status key set to "success" in case matches are found, "error" in case no matches are found.
+                                In case of matches are found, the result will contain a dictionary with match ID as the key,
+                                and a dictionary containing the competition, home team, away team, home score and away score as the value if matches are found,
+                                or an error message if no matches are found, eg:
+
+                                {
+                                    "status": "success",
+                                    "matches": {
+                                        "match_id_1": {
+                                            "competition": "Premier League",
+                                            "home_team": "Team A",
+                                            "away_team": "Team B",
+                                            "home_score": 2,
+                                            "away_score": 1
+                                        },
+                                        "match_id_2": {
+                                            "competition": "La Liga",
+                                            "home_team": "Team C",
+                                            "away_team": "Team D",
+                                            "home_score": 3,
+                                            "away_score": 0
+                                        }
+                                    }
+                                }
+
+                                or an error message if no matches are found, eg:
+                                {
+                                    "status": "error",
+                                    "error": "No matches found for the given date."
+                                }
+
+                                Group the matches in the same copetition. Return the matches in the format:
+                                {
+                                    "Premier League":
+                                    {
+                                        "match_id_1": {
+                                            "home_team": "Team A",
+                                            "away_team": "Team B",
+                                            "home_score": 2,
+                                            "away_score": 1
+                                        }
+                                    },
+                                    "La Liga":
+                                    {
+                                        "match_id_1": {
+                                            "home_team": "Team C",
+                                            "away_team": "Team D",
+                                            "home_score": 3,
+                                            "away_score": 0
+                                        }
+                                    }
+                                }
                                 If no matches are found, return an empty JSON object: {}.
+                                You will receive the date to fetch matches for in the format YYYY-MM-DD.
                                 Do not engage in any other conversation or tasks.
                             """
 
@@ -87,7 +133,7 @@ class PodcastAgents:
                 model = self.matches_fetcher_model,
                 description = description,
                 instruction = instruction,
-                tools = [*tools],
+                tools = [get_matches_by_date],
                 before_model_callback = None,
                 before_tool_callback = None,
                 output_key = output_key
@@ -109,17 +155,27 @@ class PodcastAgents:
 
         default_instruction = """
                                 You are the Web Searcher Agent.
-                                Your ONLY task is to search the web.
+                                Your ONLY task is to search the web using the `google_search` tool.
                                 Search the web for information about the matches provided by the Matches Fetcher Agent.
                                 The matches are provided in the format: 
                                 {
-                                    "match_id":
+                                    "competition_name_1":
                                         {
-                                            "competition": "competition_name", 
-                                            "home_team": "home_team_name", 
-                                            "away_team": "away_team_name", 
-                                            "home_score": "home_score", 
-                                            "away_score": "away_score"
+                                            "match_id_1": {
+                                                "home_team": "Team A",
+                                                "away_team": "Team B",
+                                                "home_score": home_score,
+                                                "away_score": away_score
+                                            },
+                                        }
+                                    "competition_name_2":
+                                        {
+                                            "match_id_1": {
+                                                "home_team": "Team C",
+                                                "away_team": "Team D",
+                                                "home_score": home_score,
+                                                "away_score": away_score
+                                            },
                                         }
                                 }
                                 If you receive an empty JSON object, that means no matches were found, so you should not search the web, you should return an empty JSON object.
@@ -127,12 +183,22 @@ class PodcastAgents:
                                 Then, generate a summary of the search results.
                                 Output the results in a JSON format like this: 
                                 {
-                                    "match_id":
+                                    "competition_name_1":
                                         {
-                                            "summary": "summary of the search results",
-                                            "details": "detailed information about the match"
+                                            "match_id_1": {
+                                                "summary": "summary of the search results",
+                                                "details": "detailed information about the match"
+                                            },
+                                        }
+                                    "competition_name_2":
+                                        {
+                                            "match_id_1": {
+                                                "summary": "summary of the search results",
+                                                "details": "detailed information about the match"
+                                            },
                                         }
                                 }
+                                If you receive an empty JSON object, return an empty JSON object: {}.
                                 If no information is found, return an empty JSON object: {}.
                                 Do not engage in any other conversation or tasks.
 
@@ -150,7 +216,7 @@ class PodcastAgents:
                 model = self.web_search_model,
                 description = description,
                 instruction = instruction,
-                tools = [*tools],
+                tools = [google_search],
                 before_model_callback = None,
                 before_tool_callback = None,
                 output_key = output_key
@@ -177,10 +243,19 @@ class PodcastAgents:
                                 Use the web search results to write a podcast script.
                                 The web search results are provided in the format:
                                 {
-                                    "match_id":
+                                    "competition_name_1":
                                         {
-                                            "summary": "summary of the search results",
-                                            "details": "detailed information about the match"
+                                            "match_id_1": {
+                                                "summary": "summary of the search results",
+                                                "details": "detailed information about the match"
+                                            },
+                                        }
+                                    "competition_name_2":
+                                        {
+                                            "match_id_1": {
+                                                "summary": "summary of the search results",
+                                                "details": "detailed information about the match"
+                                            },
                                         }
                                 }
                                 If you receive an empty JSON object, that means no matches were found, so you should not write a podcast script, you should return an empty JSON object.
@@ -188,7 +263,14 @@ class PodcastAgents:
                                 Each podcast script should be a detailed and engaging narrative about the match, including key moments, player performances, and any other relevant information.
                                 Output the podcast script in a JSON format like this:
                                 {
-                                    "match_id": "podcast_script"
+                                    "compilation_name_1":
+                                        {
+                                            "match_id_1": "podcast_script"
+                                        },
+                                    "compilation_name_2":
+                                        {
+                                            "match_id_1": "podcast_script"
+                                        }
                                 }
                                 If no information is found, return an empty JSON object: {}.
                                 Do not engage in any other conversation or tasks.
@@ -326,7 +408,7 @@ class PodcastAgents:
 
         print(f"Session initialized: {self.app_name}, {self.user_id}, {self.session_id}")
 
-        return
+        return 
     
     async def init_runner(self):
 
