@@ -9,7 +9,7 @@ import logging
 
 logging.basicConfig(level=logging.ERROR)
 
-from google.adk.agents import Agent, SequentialAgent, ParallelAgent
+from google.adk.agents import Agent, SequentialAgent
 
 from dotenv import load_dotenv
 
@@ -27,14 +27,13 @@ print(f"GOOGLE_GENAI_USE_VERTEXAI Key set: {'Yes' if os.environ.get('GOOGLE_GENA
 # --- Define Model Constants for easier use ---
 
 MODEL_GEMINI_2_0_FLASH = "gemini-2.0-flash"
-MODEL_GEMINI_2_5_FLASH_PREVIEW_TTS = "gemini-2.5-flash-preview-tts"
 
 class PodcastAgents:
     def __init__(self, 
                  matches_fetcher_model : str = MODEL_GEMINI_2_0_FLASH,
                  web_search_model : str = MODEL_GEMINI_2_0_FLASH,
                  podcast_writer_model : str = MODEL_GEMINI_2_0_FLASH,
-                 text_to_speech_model : str = MODEL_GEMINI_2_5_FLASH_PREVIEW_TTS):
+                 text_to_speech_model : str = MODEL_GEMINI_2_0_FLASH):
         
         self.matches_fetcher_model = matches_fetcher_model
         self.web_search_model = web_search_model
@@ -234,7 +233,7 @@ class PodcastAgents:
         name = "podcast_writer_agent"
         description = "Writes podcasts."
         tools = []
-        output_key = "podcast_transcript"
+        output_key = "podcast_scripts"
 
         default_instruction = """
                                 You are the Podcast Writer Agent.
@@ -259,19 +258,27 @@ class PodcastAgents:
                                         }
                                 }
                                 If you receive an empty JSON object, that means no matches were found, so you should not write a podcast script, you should return an empty JSON object.
-                                Write a podcast script for each match.
+                                Write a podcast script for only one match, choose the one with the most relevant information.
                                 Each podcast script should be a detailed and engaging narrative about the match, including key moments, player performances, and any other relevant information.
+                                The podcast is about a football match, so it should be written in a conversational tone, as if two sports commentators are discussing the match.
+                                There is two speakers in the podcast, call them "Ahmed" and "Fatima".
+                                The speakers should alternate in the podcast, with each speaker providing their own perspective on the match.
+                                The speaker "Ahmed" should provide the main commentary, while the speaker "Fatima" should provide analysis and insights.
+                                The speaker "Fatima" has a joyful and enthusiastic tone, while the speaker "Ahmed" has a more serious and analytical tone.
+                                The podcast should be between 2 and 4 minutes long, so it should be concise and to the point.
                                 Output the podcast script in a JSON format like this:
                                 {
-                                    "compilation_name_1":
-                                        {
-                                            "match_id_1": "podcast_script"
-                                        },
-                                    "compilation_name_2":
-                                        {
-                                            "match_id_1": "podcast_script"
-                                        }
+                                    "match_id_1": "podcast_script"
                                 }
+                                
+                                The "podcast_script" should be another JSON object with the keys "speaker_1", "speaker_2", and "content".
+                                The "speaker_1" and "speaker_2" should be the names of the speakers, "Ahmed" and "Fatima".
+                                The "content" should be the actual podcast script, which should be a string containing the dialogue between the two speakers, eg:
+                                {
+                                    "speaker_1": "Ahmed",
+                                    "speaker_2": "Fatima",
+                                    "content": "Ahmed: "ahmed_first_transcript"\nFatima: "fatima_first_transcript"\nAhmed: "ahmed_second_transcript"\nFatima: "fatima_second_transcript" etc."
+                                } 
                                 If no information is found, return an empty JSON object: {}.
                                 Do not engage in any other conversation or tasks.
 
@@ -307,24 +314,19 @@ class PodcastAgents:
 
         name = "text_to_speech_agent"
         description = "Converts text to speech."
-        tools = []
+        tools = [podcast_text_to_speech]
         output_key = "podcast_audio"
 
         default_instruction = """
                                 You are the Text to Speech Agent.
-                                Your ONLY task is to convert text to speech.
-                                You will receive podcast scripts from the Podcast Writer Agent.
+                                Your ONLY task is to convert podcast text to speech using the `podcast_text_to_speech` tool.
                                 The podcast scripts are provided in the format:
                                 {
                                     "match_id": "podcast_script"
                                 }
-                                If you receive an empty JSON object, that means no podcast scripts were found, so you should not convert text to speech, you should return an empty JSON object.
-                                Convert the podcast scripts to audio files.
-                                Output the audio files in a JSON format like this:
-                                {
-                                    "match_id": "audio_file_path"
-                                }
-                                If no information is found, return an empty JSON object: {}.
+                                Pass the "podcast_script" to the `podcast_text_to_speech` tool to convert it to speech.
+                                The `podcast_text_to_speech` tool will return a string containing the path to the audio file.
+                            
                                 Do not engage in any other conversation or tasks.
                                 Here are the podcast scripts you need to convert to speech:
                                 {podcast_scripts}
@@ -340,7 +342,7 @@ class PodcastAgents:
                 model = self.text_to_speech_model,
                 description = description,
                 instruction = instruction,
-                tools = tools,
+                tools = [podcast_text_to_speech],
                 before_model_callback = None,
                 before_tool_callback = None,
                 output_key = output_key
@@ -390,7 +392,7 @@ class PodcastAgents:
                             self.matches_fetcher_agent, 
                             self.web_search_agent, 
                             self.podcast_writer_agent, 
-                            #self.text_to_speech_agent
+                            self.text_to_speech_agent
                           ],
         )
 

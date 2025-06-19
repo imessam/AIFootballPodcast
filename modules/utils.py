@@ -1,4 +1,5 @@
 import logging
+import wave
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -6,6 +7,8 @@ from google.adk.agents import BaseAgent
 from google.adk.sessions import InMemorySessionService
 from google.adk.runners import Runner
 from google.genai import types # For creating message Content/Parts
+
+
 
 async def create_session(app_name : str, 
                         user_id : str, 
@@ -111,3 +114,11 @@ async def run_conversation(query : str, runner : Runner, user_id : str, session_
                                        runner=runner,
                                        user_id=user_id,
                                        session_id=session_id) # Expecting the cached response
+    
+
+def wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
+        with wave.open(filename, "wb") as wf:
+            wf.setnchannels(channels)
+            wf.setsampwidth(sample_width)
+            wf.setframerate(rate)
+            wf.writeframes(pcm)
