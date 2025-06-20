@@ -192,9 +192,12 @@ def podcast_text_to_speech(podcast_script: dict, tool_context: ToolContext) -> s
     
     data = response.candidates[0].content.parts[0].inline_data.data
 
-    file_name='out.wav'
+    if not os.path.exists("output"):
+        os.makedirs("output")
+
+    file_name= f"output/out.wav"
     if tool_context is not None:
-        file_name = f"{tool_context.agent_name}_{tool_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
+        file_name = f"output/{tool_context.agent_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
 
     wave_file(file_name, data) # Saves the file to current directory
 

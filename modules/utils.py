@@ -72,6 +72,8 @@ async def call_agent_async(query: str, runner : Runner, user_id, session_id) -> 
 
   final_response_text = "Agent did not produce a final response." # Default
 
+  agents_final_responses = {}
+
   # Key Concept: run_async executes the agent logic and yields Events.
   # We iterate through events to find the final answer.
   async for event in runner.run_async(user_id=user_id, session_id=session_id, new_message=content):
@@ -86,35 +88,11 @@ async def call_agent_async(query: str, runner : Runner, user_id, session_id) -> 
           elif event.actions and event.actions.escalate: # Handle potential errors/escalations
              final_response_text = f"Agent escalated: {event.error_message or 'No specific message.'}"
           # Add more checks here if needed (e.g., specific error codes)
-          break # Stop processing events once the final response is found
+          agents_final_responses[event.author] = final_response_text # Stop processing events once the final response is found
 
   print(f"<<< Agent Response: {final_response_text}")
 
   return final_response_text
-
-
-# @title Run the Initial Conversation
-
-# We need an async function to await our interaction helper
-async def run_conversation(query : str, runner : Runner, user_id : str, session_id : str):
-    
-    """
-    Initiates a conversation session with the agent using the provided runner, user ID, and session ID.
-
-    Args:
-        query (str): The query to be sent to the agent.
-        runner (Runner): The runner object that orchestrates the agent execution.
-        user_id (str): The identifier for the user initiating the conversation.
-        session_id (str): The session identifier for the conversation.
-
-    This function awaits the agent's response by sending a query via the `call_agent_async` function.
-    """
-
-    await call_agent_async(query,
-                                       runner=runner,
-                                       user_id=user_id,
-                                       session_id=session_id) # Expecting the cached response
-    
 
 def wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
         with wave.open(filename, "wb") as wf:

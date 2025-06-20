@@ -25,11 +25,32 @@ print(f"GOOGLE_GENAI_USE_VERTEXAI Key set: {'Yes' if os.environ.get('GOOGLE_GENA
 
 # --- Define Model Constants for easier use ---
 
-MODEL_GEMINI_2_0_FLASH = "gemini-2.0-flash"
+async def main():
 
-podcast_agent_object = PodcastAgents()
+    try:
+        podcast_agent_object = PodcastAgents()
 
-# Create the agents.
-podcast_agent_object.create_agents()
+        # Create the agents.
+        podcast_agent_object.create_agents()
 
-root_agent = podcast_agent_object.sequential_agent
+        # Create the session service and runner.
+        await podcast_agent_object.init_session()
+        await podcast_agent_object.init_runner()
+
+
+        runner = podcast_agent_object.runner
+        app_name = podcast_agent_object.app_name
+        user_id = podcast_agent_object.user_id
+        session_id = podcast_agent_object.session_id
+
+        if runner is None:
+            print("Error: Runner not initialized.")
+            return
+        
+        await call_agent_async("2025-06-21.",runner, user_id, session_id)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    asyncio.run(main())

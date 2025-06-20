@@ -9,7 +9,7 @@ import logging
 
 logging.basicConfig(level=logging.ERROR)
 
-from google.adk.agents import Agent, SequentialAgent
+from google.adk.agents import Agent, SequentialAgent, ParallelAgent
 
 from dotenv import load_dotenv
 
@@ -30,17 +30,23 @@ MODEL_GEMINI_2_0_FLASH = "gemini-2.0-flash"
 
 class PodcastAgents:
     def __init__(self, 
-                 matches_fetcher_model : str = MODEL_GEMINI_2_0_FLASH,
-                 web_search_model : str = MODEL_GEMINI_2_0_FLASH,
-                 podcast_writer_model : str = MODEL_GEMINI_2_0_FLASH,
-                 text_to_speech_model : str = MODEL_GEMINI_2_0_FLASH):
+                    matches_fetcher_model : str = MODEL_GEMINI_2_0_FLASH,
+                    matches_web_fetcher_model : str = MODEL_GEMINI_2_0_FLASH,
+                    web_search_model : str = MODEL_GEMINI_2_0_FLASH,
+                    podcast_writer_model : str = MODEL_GEMINI_2_0_FLASH,
+                    text_to_speech_model : str = MODEL_GEMINI_2_0_FLASH):
         
         self.matches_fetcher_model = matches_fetcher_model
+        self.matches_web_fetcher_model = matches_web_fetcher_model
+        self.matches_combiner_model = matches_fetcher_model
         self.web_search_model = web_search_model
         self.podcast_writer_model = podcast_writer_model
         self.text_to_speech_model = text_to_speech_model
 
         self.matches_fetcher_agent = None
+        self.matches_web_fetcher_agent = None
+        self.matches_parallel_agents = None
+        self.matches_combiner_agent = None
         self.web_search_agent = None
         self.podcast_writer_agent = None
         self.text_to_speech_agent = None
@@ -59,7 +65,7 @@ class PodcastAgents:
         name = "matches_fetcher"
         description = "Fetches matches from the given tool."
         tools = [get_matches_by_date]
-        output_key = "matches"
+        output_key = "matches_fetcher_results"
 
         default_instruction = """
                                 You are the Match Fetcher Agent.
@@ -145,6 +151,134 @@ class PodcastAgents:
 
         return True
     
+    def _create_matches_web_fetcher_agent(self, custom_instruction : str) -> bool:
+
+        name = "matches_web_fetcher"
+        description = "Fetches matches from web."
+        tools = [google_search]
+        output_key = "matches_fetcher_web_results"
+
+        default_instruction = """
+                                You are the Match Web Fetcher Agent.
+                                Your ONLY task is to fetch matches from the web for the given date using the `google_search` tool.
+                                The date is provided in the format YYYY-MM-DD.
+                                In case of matches are found, group the matches in the same competition. Return the matches in the format:
+                                {
+                                    "Premier League":
+                                    {
+                                        "match_id_1": {
+                                            "home_team": "Team A",
+                                            "away_team": "Team B",
+                                            "home_score": 2,
+                                            "away_score": 1
+                                        }
+                                    },
+                                    "La Liga":
+                                    {
+                                        "match_id_1": {
+                                            "home_team": "Team C",
+                                            "away_team": "Team D",
+                                            "home_score": 3,
+                                            "away_score": 0
+                                        }
+                                    }
+                                }
+                                Do not return all the matches, only return the best and most important matches.
+                                If no matches are found, return an empty JSON object: {}.
+                                You will receive the date to fetch matches for in the format YYYY-MM-DD.
+                                Do not engage in any other conversation or tasks.
+                            """
+
+        instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
+
+        print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
+
+        try:
+            self.matches_web_fetcher_agent = Agent(
+                name = name,
+                model = self.matches_web_fetcher_model,
+                description = description,
+                instruction = instruction,
+                tools = [google_search],
+                before_model_callback = None,
+                before_tool_callback = None,
+                output_key = output_key
+            )
+        except Exception as e:
+            print(f"Error creating {name}: {e}")
+            return False
+        
+        print(f"{name} created successfully.")
+
+        return True
+    
+    def _create_matches_combiner_agent(self, custom_instruction : str) -> bool:
+
+        name = "matches_combiner_agent"
+        description = "Combines matches."
+        tools = []
+        output_key = "combined_matches"
+
+        default_instruction = """
+                                You are the Matches Combiner Agent.
+                                Your ONLY task is to combine matches from the Matches Fetcher Agent and the Matches Web Fetcher Agent.
+                                You will receive matches from the Matches Fetcher Agent and matches from the Matches Web Fetcher Agent in the format:
+                                {
+                                    "Premier League":
+                                    {
+                                        "match_id_1": {
+                                            "home_team": "Team A",
+                                            "away_team": "Team B",
+                                            "home_score": 2,
+                                            "away_score": 1
+                                        }
+                                    },
+                                    "La Liga":
+                                    {
+                                        "match_id_1": {
+                                            "home_team": "Team C",                                            
+                                            "away_team": "Team D",
+                                            "home_score": 3,
+                                            "away_score": 0
+                                        }
+                                    }
+                                }
+
+                                Combine the matches from both sources into a single JSON object.
+                                If you receive an empty JSON object from either source, that means no matches were found, so you should not combine anything, you should return an empty JSON object.
+                                Output the combined matches in the same format as above.
+                                If no matches are found, return an empty JSON object: {}.
+                                Do not engage in any other conversation or tasks.
+                                Here are the matches you need to combine:
+                                Matches from Matches Fetcher Agent:
+                                {matches_fetcher_results}
+                                Matches from Matches Web Fetcher Agent:
+                                {matches_fetcher_web_results}
+                            """
+        instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
+
+        print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
+
+        try:
+            self.matches_combiner_agent = Agent(
+                name = name,
+                model = self.matches_fetcher_model,
+                description = description,
+                instruction = instruction,
+                tools = tools,
+                before_model_callback = None,
+                before_tool_callback = None,
+                output_key = output_key
+            )
+        except Exception as e:
+            print(f"Error creating {name}: {e}")
+            return False
+        
+        print(f"{name} created successfully.")
+
+        return True   
+
+    
     def _create_web_search_agent(self, custom_instruction : str) -> bool:
 
         name = "web_search_agent"
@@ -185,14 +319,12 @@ class PodcastAgents:
                                     "competition_name_1":
                                         {
                                             "match_id_1": {
-                                                "summary": "summary of the search results",
                                                 "details": "detailed information about the match"
                                             },
                                         }
                                     "competition_name_2":
                                         {
                                             "match_id_1": {
-                                                "summary": "summary of the search results",
                                                 "details": "detailed information about the match"
                                             },
                                         }
@@ -202,7 +334,7 @@ class PodcastAgents:
                                 Do not engage in any other conversation or tasks.
 
                                 Here are the matches you need to search for:
-                                {matches}
+                                {combined_matches}
                             """
 
         instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
@@ -245,14 +377,12 @@ class PodcastAgents:
                                     "competition_name_1":
                                         {
                                             "match_id_1": {
-                                                "summary": "summary of the search results",
                                                 "details": "detailed information about the match"
                                             },
                                         }
                                     "competition_name_2":
                                         {
                                             "match_id_1": {
-                                                "summary": "summary of the search results",
                                                 "details": "detailed information about the match"
                                             },
                                         }
@@ -265,7 +395,7 @@ class PodcastAgents:
                                 The speakers should alternate in the podcast, with each speaker providing their own perspective on the match.
                                 The speaker "Ahmed" should provide the main commentary, while the speaker "Fatima" should provide analysis and insights.
                                 The speaker "Fatima" has a joyful and enthusiastic tone, while the speaker "Ahmed" has a more serious and analytical tone.
-                                The podcast should be between 2 and 4 minutes long, so it should be concise and to the point.
+                                The podcast should be between 4 and 5 minutes long, so it should be concise and to the point.
                                 Output the podcast script in a JSON format like this:
                                 {
                                     "match_id_1": "podcast_script"
@@ -279,7 +409,7 @@ class PodcastAgents:
                                     "speaker_2": "Fatima",
                                     "content": "Ahmed: "ahmed_first_transcript"\nFatima: "fatima_first_transcript"\nAhmed: "ahmed_second_transcript"\nFatima: "fatima_second_transcript" etc."
                                 } 
-                                If no information is found, return an empty JSON object: {}.
+                                If you receive an empty JSON object, return an empty JSON object: {}.
                                 Do not engage in any other conversation or tasks.
 
                                 Here are the matches web search results you need to write podcasts for:
@@ -320,13 +450,13 @@ class PodcastAgents:
         default_instruction = """
                                 You are the Text to Speech Agent.
                                 Your ONLY task is to convert podcast text to speech using the `podcast_text_to_speech` tool.
+                                If you receive an empty JSON object, that means no podcast scripts were found, so you should not convert anything to speech, you should return an empty JSON object.
                                 The podcast scripts are provided in the format:
                                 {
                                     "match_id": "podcast_script"
                                 }
                                 Pass the "podcast_script" to the `podcast_text_to_speech` tool to convert it to speech.
                                 The `podcast_text_to_speech` tool will return a string containing the path to the audio file.
-                            
                                 Do not engage in any other conversation or tasks.
                                 Here are the podcast scripts you need to convert to speech:
                                 {podcast_scripts}
@@ -365,12 +495,32 @@ class PodcastAgents:
         text_to_speech_instruction = custom_instructions.get("text_to_speech", "")
 
         self._create_matches_fetcher_agent(matches_fetcher_instruction)
+        self._create_matches_web_fetcher_agent(matches_fetcher_instruction)
+        self._create_matches_combiner_agent(matches_fetcher_instruction)
         self._create_web_search_agent(web_search_instruction)
         self._create_podcast_writer_agent(podcast_writer_instruction)
         self._create_text_to_speech_agent(text_to_speech_instruction)
 
         if not self.matches_fetcher_agent:
             print(f"Error: Matches fetcher agent not created ... ")
+            return
+        
+        if not self.matches_web_fetcher_agent:
+            print(f"Error: Matches web fetcher agent not created ... ")
+            return
+        
+        if not self.matches_combiner_agent:
+            print(f"Error: Matches combiner agent not created ... ")
+            return
+        
+        self.matches_parallel_agents = ParallelAgent(
+            name = "matches_parallel_agents",
+            description = "Executes the matches fetcher and web fetcher agents in parallel.",
+            sub_agents = [self.matches_fetcher_agent, self.matches_web_fetcher_agent],
+        )
+
+        if not self.matches_parallel_agents:
+            print(f"Error: Matches parallel agents not created ... ")
             return
 
         if not self.web_search_agent:
@@ -389,7 +539,8 @@ class PodcastAgents:
             name = "podcast_generation_pipeline",
             description = "Executes the podcast generation pipeline sequentially.",
             sub_agents = [
-                            self.matches_fetcher_agent, 
+                            self.matches_parallel_agents,
+                            self.matches_combiner_agent, 
                             self.web_search_agent, 
                             self.podcast_writer_agent, 
                             self.text_to_speech_agent
