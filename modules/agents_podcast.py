@@ -162,15 +162,15 @@ class PodcastAgents:
                                 You are the Match Web Fetcher Agent.
                                 Your ONLY task is to fetch matches from the web for the given date using the `google_search` tool.
                                 The date is provided in the format YYYY-MM-DD.
-                                In case of matches are found, group the matches in the same competition. Return the matches in the format:
+                                In case of matches are found, group the matches in the same competition. Return the matches in this exact format:
                                 {
                                     "Premier League":
                                     {
                                         "match_id_1": {
                                             "home_team": "Team A",
                                             "away_team": "Team B",
-                                            "home_score": 2,
-                                            "away_score": 1
+                                            "home_score": home_score,
+                                            "away_score": away_score
                                         }
                                     },
                                     "La Liga":
@@ -178,11 +178,12 @@ class PodcastAgents:
                                         "match_id_1": {
                                             "home_team": "Team C",
                                             "away_team": "Team D",
-                                            "home_score": 3,
-                                            "away_score": 0
+                                            "home_score": home_score,
+                                            "away_score": away_score
                                         }
                                     }
                                 }
+                                Replace any "null" values with 0.
                                 Do not return all the matches, only return the best and most important matches.
                                 If no matches are found, return an empty JSON object: {}.
                                 You will receive the date to fetch matches for in the format YYYY-MM-DD.
@@ -244,7 +245,7 @@ class PodcastAgents:
                                     }
                                 }
 
-                                Combine the matches from both sources into a single JSON object.
+                                Combine the matches from both sources into a single dictionary.
                                 If you receive an empty JSON object from either source, that means no matches were found, so you should not combine anything, you should return an empty JSON object.
                                 Output the combined matches in the same format as above.
                                 If no matches are found, return an empty JSON object: {}.
@@ -348,7 +349,7 @@ class PodcastAgents:
                 description = description,
                 instruction = instruction,
                 tools = [google_search],
-                before_model_callback = None,
+                before_agent_callback = check_empty_agents_state,
                 before_tool_callback = None,
                 output_key = output_key
             )
@@ -388,7 +389,7 @@ class PodcastAgents:
                                         }
                                 }
                                 If you receive an empty JSON object, that means no matches were found, so you should not write a podcast script, you should return an empty JSON object.
-                                Write a podcast script for only one match, choose the one with the most relevant information.
+                                Write a podcast script for each match in the web search results.
                                 Each podcast script should be a detailed and engaging narrative about the match, including key moments, player performances, and any other relevant information.
                                 The podcast is about a football match, so it should be written in a conversational tone, as if two sports commentators are discussing the match.
                                 There is two speakers in the podcast, call them "Ahmed" and "Fatima".
@@ -398,7 +399,12 @@ class PodcastAgents:
                                 The podcast should be between 4 and 5 minutes long, so it should be concise and to the point.
                                 Output the podcast script in a JSON format like this:
                                 {
-                                    "match_id_1": "podcast_script"
+                                    "competition_name_1": {
+                                        "match_id_1": "podcast_script" 
+                                    },
+                                    "competition_name_2": {
+                                        "match_id_1": "podcast_script"
+                                    }
                                 }
                                 
                                 The "podcast_script" should be another JSON object with the keys "speaker_1", "speaker_2", and "content".
@@ -427,7 +433,7 @@ class PodcastAgents:
                 description = description,
                 instruction = instruction,
                 tools = tools,
-                before_model_callback = None,
+                before_agent_callback = check_empty_agents_state,
                 before_tool_callback = None,
                 output_key = output_key,
             )
@@ -450,13 +456,18 @@ class PodcastAgents:
         default_instruction = """
                                 You are the Text to Speech Agent.
                                 Your ONLY task is to convert podcast text to speech using the `podcast_text_to_speech` tool.
-                                If you receive an empty JSON object, that means no podcast scripts were found, so you should not convert anything to speech, you should return an empty JSON object.
+                                You will receive podcast scripts for each match in each competition from the Podcast Writer Agent.
                                 The podcast scripts are provided in the format:
                                 {
-                                    "match_id": "podcast_script"
+                                    "competition_name_1": {
+                                        "match_id_1": "podcast_script" 
+                                    },
+                                    "competition_name_2": {
+                                        "match_id_1": "podcast_script"
+                                    }
                                 }
-                                Pass the "podcast_script" to the `podcast_text_to_speech` tool to convert it to speech.
-                                The `podcast_text_to_speech` tool will return a string containing the path to the audio file.
+                                Pass the "podcast_script" for each match in each competition to the `podcast_text_to_speech` tool to convert it to speech.
+                                The `podcast_text_to_speech` tool will return a string containing the path to the audio file "path_to_audio".
                                 Do not engage in any other conversation or tasks.
                                 Here are the podcast scripts you need to convert to speech:
                                 {podcast_scripts}
@@ -473,8 +484,7 @@ class PodcastAgents:
                 description = description,
                 instruction = instruction,
                 tools = [podcast_text_to_speech],
-                before_model_callback = None,
-                before_tool_callback = None,
+                before_agent_callback = check_empty_agents_state,
                 output_key = output_key
             )
         except Exception as e:

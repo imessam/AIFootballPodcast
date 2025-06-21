@@ -1,108 +1,65 @@
-# @title 1. Define the before_model_callback Guardrail
+import json
+import re
 
-# Ensure necessary imports are available
 from google.adk.agents.callback_context import CallbackContext
-from google.adk.models.llm_request import LlmRequest
-from google.adk.models.llm_response import LlmResponse
-from google.genai import types # For creating response content
-# Ensure necessary imports are available
-from google.adk.tools.base_tool import BaseTool
-from google.adk.tools.tool_context import ToolContext
-from typing import Optional, Dict, Any # For type hints
+from typing import Optional
+from google.genai import types 
 
-def block_keyword_guardrail(
-    callback_context: CallbackContext, llm_request: LlmRequest
-) -> Optional[LlmResponse]:
+from langchain_core.utils.json import parse_json_markdown
+
+
+
+
+# --- 1. Define the Callback Function ---
+def check_empty_agents_state(callback_context: CallbackContext) -> Optional[types.Content]:
     """
-    Inspects the latest user message for 'BLOCK'. If found, blocks the LLM call
-    and returns a predefined LlmResponse. Otherwise, returns None to proceed.
+    Callback function to check if matches were found in the session state.
     """
-    agent_name = callback_context.agent_name # Get the name of the agent whose model call is being intercepted
-    print(f"--- Callback: block_keyword_guardrail running for agent: {agent_name} ---")
+    agent_name = callback_context.agent_name
+    invocation_id = callback_context.invocation_id
+    current_state = callback_context.state.to_dict()
 
-    # Extract the text from the latest user message in the request history
-    last_user_message_text = ""
-    if llm_request.contents:
-        # Find the most recent message with role 'user'
-        for content in reversed(llm_request.contents):
-            if content.role == 'user' and content.parts:
-                # Assuming text is in the first part for simplicity
-                if content.parts[0].text:
-                    last_user_message_text = content.parts[0].text
-                    break # Found the last user message text
+    state_to_check = "{}"
 
-    print(f"--- Callback: Inspecting last user message: '{last_user_message_text[:100]}...' ---") # Log first 100 chars
+    print(f"\n[Callback] Entering agent: {agent_name} (Inv: {invocation_id})")
+    print(f"[Callback] Current State: {current_state}")
 
-    # --- Guardrail Logic ---
-    keyword_to_block = "BLOCK"
-    if keyword_to_block in last_user_message_text.upper(): # Case-insensitive check
-        print(f"--- Callback: Found '{keyword_to_block}'. Blocking LLM call! ---")
-        # Optionally, set a flag in state to record the block event
-        callback_context.state["guardrail_block_keyword_triggered"] = True
-        print(f"--- Callback: Set state 'guardrail_block_keyword_triggered': True ---")
+    if agent_name == "web_search_agent" and "combined_matches" in current_state:
 
-        # Construct and return an LlmResponse to stop the flow and send this back instead
-        return LlmResponse(
-            content=types.Content(
-                role="model", # Mimic a response from the agent's perspective
-                parts=[types.Part(text=f"I cannot process this request because it contains the blocked keyword '{keyword_to_block}'.")],
-            )
-            # Note: You could also set an error_message field here if needed
+        print(f"[Callback] Agent {agent_name} has 'combined_matches' in state.")
+
+        state_to_check = current_state.get("combined_matches", "{}")
+
+    elif agent_name == "podcast_writer_agent" and "web_search_results" in current_state:
+        print(f"[Callback] Agent {agent_name} has 'web_search_results' in state.")
+
+        state_to_check = current_state.get("web_search_results", "{}")
+
+    elif agent_name == "text_to_speech_agent" and "podcast_scripts" in current_state:
+        print(f"[Callback] Agent {agent_name} has 'podcast_scripts' in state.")
+
+        state_to_check = current_state.get("podcast_scripts", "{}")
+    else:
+        print(f"[Callback] Agent {agent_name} does not have expected state keys.")
+
+    
+    state_to_check_json = parse_json_markdown(state_to_check)
+
+    # print(f"[Callback] Extracted JSON: {state_to_check_json}")
+
+    # state_to_check_json = json.loads(state_to_check_json) if state_to_check_json else {}
+
+    print(f"[Callback] Check State JSON: {state_to_check_json}, type: {type(state_to_check_json)}, length: {len(state_to_check_json)}")
+
+    # Check the condition in session state dictionary
+    if len(state_to_check_json.keys()) == 0:
+        print(f"[Callback] State condition 'empty_state' met: Skipping agent {agent_name}.")
+        # Return Content to skip the agent's run
+        return types.Content(
+            parts=[types.Part(text=f"Agent {agent_name} skipped by before_agent_callback due to state.")],
+            role="model" # Assign model role to the overriding response
         )
     else:
-        # Keyword not found, allow the request to proceed to the LLM
-        print(f"--- Callback: Keyword not found. Allowing LLM call for {agent_name}. ---")
-        return None # Returning None signals ADK to continue normally
-
-    # --- End of Guardrail Logic ---
-
-    return None
-
-
-# @title 1. Define the before_tool_callback Guardrail
-
-def block_paris_tool_guardrail(
-    tool: BaseTool, args: Dict[str, Any], tool_context: ToolContext
-) -> Optional[Dict]:
-    """
-    Checks if 'get_weather_stateful' is called for 'Paris'.
-    If so, blocks the tool execution and returns a specific error dictionary.
-    Otherwise, allows the tool call to proceed by returning None.
-    """
-    tool_name = tool.name
-    agent_name = tool_context.agent_name # Agent attempting the tool call
-    print(f"--- Callback: block_paris_tool_guardrail running for tool '{tool_name}' in agent '{agent_name}' ---")
-    print(f"--- Callback: Inspecting args: {args} ---")
-
-    # --- Guardrail Logic ---
-    target_tool_name = "get_weather_stateful" # Match the function name used by FunctionTool
-    blocked_city = "paris"
-
-    # Check if it's the correct tool and the city argument matches the blocked city
-    if tool_name == target_tool_name:
-        city_argument = args.get("city", "") # Safely get the 'city' argument
-        if city_argument and city_argument.lower() == blocked_city:
-            print(f"--- Callback: Detected blocked city '{city_argument}'. Blocking tool execution! ---")
-            # Optionally update state
-            tool_context.state["guardrail_tool_block_triggered"] = True
-            print(f"--- Callback: Set state 'guardrail_tool_block_triggered': True ---")
-
-            # Return a dictionary matching the tool's expected output format for errors
-            # This dictionary becomes the tool's result, skipping the actual tool run.
-            return {
-                "status": "error",
-                "error_message": f"Policy restriction: Weather checks for '{city_argument.capitalize()}' are currently disabled by a tool guardrail."
-            }
-        else:
-             print(f"--- Callback: City '{city_argument}' is allowed for tool '{tool_name}'. ---")
-    else:
-        print(f"--- Callback: Tool '{tool_name}' is not the target tool. Allowing. ---")
-
-
-    # If the checks above didn't return a dictionary, allow the tool to execute
-    print(f"--- Callback: Allowing tool '{tool_name}' to proceed. ---")
-    return None # Returning None allows the actual tool function to run
-
-    # --- End of Guardrail Logic ---
-
-    return None
+        print(f"[Callback] State condition not met: Proceeding with agent {agent_name}.")
+        # Return None to allow the LlmAgent's normal execution
+        return None

@@ -1,5 +1,10 @@
 import os
+import sys
 import requests
+
+base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
+if base_path not in sys.path:
+    sys.path.insert(0, base_path)
 
 from datetime import datetime
 from typing import Dict, Union
@@ -192,12 +197,13 @@ def podcast_text_to_speech(podcast_script: dict, tool_context: ToolContext) -> s
     
     data = response.candidates[0].content.parts[0].inline_data.data
 
-    if not os.path.exists("output"):
-        os.makedirs("output")
+    out_dir = os.path.join(base_path, "output")
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
 
-    file_name= f"output/out.wav"
+    file_name= f"{out_dir}/out.wav"
     if tool_context is not None:
-        file_name = f"output/{tool_context.agent_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
+        file_name = f"{out_dir}/{tool_context.agent_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
 
     wave_file(file_name, data) # Saves the file to current directory
 
