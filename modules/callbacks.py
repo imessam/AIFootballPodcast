@@ -1,9 +1,7 @@
-import json
-import re
-
 from google.adk.agents.callback_context import CallbackContext
 from typing import Optional
 from google.genai import types 
+from google.adk.models.llm_response import LlmResponse
 
 from langchain_core.utils.json import parse_json_markdown
 
@@ -63,3 +61,4 @@ def check_empty_agents_state(callback_context: CallbackContext) -> Optional[type
         print(f"[Callback] State condition not met: Proceeding with agent {agent_name}.")
         # Return None to allow the LlmAgent's normal execution
         return None
+    

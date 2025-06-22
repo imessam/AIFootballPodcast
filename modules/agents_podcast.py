@@ -9,7 +9,7 @@ import logging
 
 logging.basicConfig(level=logging.ERROR)
 
-from google.adk.agents import Agent, SequentialAgent, ParallelAgent
+from google.adk.agents import Agent, SequentialAgent, ParallelAgent, LoopAgent
 
 from dotenv import load_dotenv
 
@@ -47,9 +47,14 @@ class PodcastAgents:
         self.matches_web_fetcher_agent = None
         self.matches_parallel_agents = None
         self.matches_combiner_agent = None
+
         self.web_search_agent = None
+
         self.podcast_writer_agent = None
+
         self.text_to_speech_agent = None
+        self.check_agent_called_tool = None
+        self.text_to_speech_agent_loop = None
 
         self.sequential_agent = None
 
@@ -246,7 +251,8 @@ class PodcastAgents:
                                 }
 
                                 Combine the matches from both sources into a single dictionary.
-                                If you receive an empty JSON object from either source, that means no matches were found, so you should not combine anything, you should return an empty JSON object.
+                                If one source returns matches and the other returns an empty JSON object, return the matches from the source that returns matches.
+                                If you receive an empty JSON object from both sources, that means no matches were found, so you should not combine anything, you should return an empty JSON object.
                                 Output the combined matches in the same format as above.
                                 If no matches are found, return an empty JSON object: {}.
                                 Do not engage in any other conversation or tasks.
@@ -452,10 +458,13 @@ class PodcastAgents:
         description = "Converts text to speech."
         tools = [podcast_text_to_speech]
         output_key = "podcast_audio"
+        COMPLETION_PHRASE = "TOOL_CALLED"
+
 
         default_instruction = """
                                 You are the Text to Speech Agent.
                                 Your ONLY task is to convert podcast text to speech using the `podcast_text_to_speech` tool.
+                                You MUST use the `podcast_text_to_speech` tool to convert the podcast text to speech.
                                 You will receive podcast scripts for each match in each competition from the Podcast Writer Agent.
                                 The podcast scripts are provided in the format:
                                 {
@@ -468,7 +477,33 @@ class PodcastAgents:
                                 }
                                 Pass the "podcast_script" for each match in each competition to the `podcast_text_to_speech` tool to convert it to speech.
                                 The `podcast_text_to_speech` tool will return a string containing the path to the audio file "path_to_audio".
+                                DO NOT write any text, you only need to pass the "podcast_script" for each match in each competition to the `podcast_text_to_speech` tool.
+                                YOU MUST use the `podcast_text_to_speech` tool to convert the podcast script to speech, THIS IS YOUR ONLY TASK AND IT IS AN ORDER.
+                                Keep remembering the "path_to_audio" returned by the `podcast_text_to_speech` tool for each match in each competition.
+                                After converting all the podcast scripts to speech for each match in each competition, combine all the "path_to_audio" for all matches in a single JSON, eg:
+                                {
+                                    "competition_name_1": {
+                                        "match_id_1": {
+                                            "home_team": "Team A",
+                                            "away_team": "Team B",
+                                            "home_score": home_score,
+                                            "away_score": away_score,
+                                            "path_to_audio": "path_to_audio_1"
+                                        }
+                                    },
+                                    "competition_name_2": {
+                                        "match_id_1": {
+                                            "home_team": "Team C",
+                                            "away_team": "Team D",
+                                            "home_score": home_score,
+                                            "away_score": away_score,
+                                            "path_to_audio": "path_to_audio_2"
+                                        }
+                                    }
+                                }
                                 Do not engage in any other conversation or tasks.
+                                DO NOT RETURN UNLESS YOU HAVE COMPLETED YOUR TASK AND CALLED THE `podcast_text_to_speech` tool.
+                                IF YOU CALLED THE `podcast_text_to_speech` tool, RETURN THE COMPLETION PHRASE: "TOOL_CALLED".
                                 Here are the podcast scripts you need to convert to speech:
                                 {podcast_scripts}
                             """
@@ -487,6 +522,21 @@ class PodcastAgents:
                 before_agent_callback = check_empty_agents_state,
                 output_key = output_key
             )
+
+            self.check_agent_called_tool = Agent(
+                name = "check_agent_called_tool",
+                model = self.text_to_speech_model,
+                description = """Checks if the agent has called the `podcast_text_to_speech` tool by searching for the completion phrase "TOOL_CALLED".
+                                 If the agent has called the `podcast_text_to_speech` tool, call the `exit_loop` tool.""",
+                instruction = "You are a tool that checks if the agent has called the `podcast_text_to_speech` tool.",
+                tools = [exit_loop]
+            )
+
+            self.text_to_speech_agent_loop = LoopAgent(
+                name = "text_to_speech_agent_loop",
+                sub_agents=[self.text_to_speech_agent, self.check_agent_called_tool],
+                max_iterations=3
+            )
         except Exception as e:
             print(f"Error creating {name}: {e}")
             return False
@@ -494,6 +544,7 @@ class PodcastAgents:
         print(f"{name} created successfully.")
 
         return True
+    
     
     def create_agents(self, custom_instructions : dict = {}):
 
@@ -545,6 +596,10 @@ class PodcastAgents:
             print(f"Error: Text to speech agent not created ... ")
             return
 
+        if not self.text_to_speech_agent_loop:
+            print(f"Error: Text to speech agent loop not created ... ")
+            return
+
         self.sequential_agent = SequentialAgent(
             name = "podcast_generation_pipeline",
             description = "Executes the podcast generation pipeline sequentially.",
@@ -553,7 +608,7 @@ class PodcastAgents:
                             self.matches_combiner_agent, 
                             self.web_search_agent, 
                             self.podcast_writer_agent, 
-                            self.text_to_speech_agent
+                            self.text_to_speech_agent_loop
                           ],
         )
 

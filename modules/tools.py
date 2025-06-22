@@ -7,13 +7,15 @@ if base_path not in sys.path:
     sys.path.insert(0, base_path)
 
 from datetime import datetime
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 from dotenv import load_dotenv
 
 from google.adk.tools.tool_context import ToolContext
 from google.adk.tools import google_search  # Import the tool
 from google import genai
 from google.genai import types
+from google.cloud import storage
+
 
 from modules.utils import wave_file
 
@@ -22,7 +24,6 @@ load_dotenv()
 
 print(f"FOOTBALL_DATA_API Key set: {'Yes' if os.environ.get('FOOTBALL_DATA_API_KEY') and os.environ['FOOTBALL_DATA_API_KEY'] != 'FOOTBALL_DATA_API_KEY' else 'No (REPLACE PLACEHOLDER!)'}")
 print(f"Google API Key set: {'Yes' if os.environ.get('GOOGLE_API_KEY') and os.environ['GOOGLE_API_KEY'] != 'YOUR_GOOGLE_API_KEY' else 'No (REPLACE PLACEHOLDER!)'}")
-
 
 MODEL_GEMINI_2_5_FLASH_PREVIEW_TTS = "gemini-2.5-flash-preview-tts"
 
@@ -210,3 +211,66 @@ def podcast_text_to_speech(podcast_script: dict, tool_context: ToolContext) -> s
     print(f"--- Tool : {tool_name} Audio file saved as: {file_name} ---")
 
     return file_name  # Return the name of the saved audio file
+
+def exit_loop(tool_context: ToolContext):
+
+    """Call this function ONLY when the critique indicates no further changes are needed, signaling the iterative process should end."""
+    print(f"  [Tool Call] exit_loop triggered by {tool_context.agent_name}")
+    tool_context.actions.escalate = True
+
+    podcast_audio = tool_context.state.get("podcast_audio", None)
+
+    if podcast_audio is not None:
+        print(f"  [Tool Call] podcast_audio: {podcast_audio}")
+        return podcast_audio
+    # Return empty dict as tools should typically return JSON-serializable output
+    return {}
+
+def upload_blob(source_file_name : str,  tool_context: Optional[ToolContext]) -> dict:
+
+    """
+        Uploads a file to a Google Cloud Storage bucket.
+
+        Args:
+            source_file_name (str): The path to the file to upload.
+        Returns:
+            dict: A dictionary containing the url of the uploaded file.
+    """
+   
+    BUCKET_NAME = os.environ.get("BUCKET_NAME", None)
+    if BUCKET_NAME is None:
+        BUCKET_NAME = "gemini_podacst_agent_bucket"
+
+    BUCKET_DESTINATION = os.environ.get("BUCKET_DESTINATION", None)
+    if BUCKET_DESTINATION is None:
+        BUCKET_DESTINATION = "output"
+
+    destination_blob_name = f"{BUCKET_DESTINATION}/{source_file_name.split('/')[-1]}"
+
+    print(f"Tool: Uploading {source_file_name} to {destination_blob_name}")
+
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(BUCKET_NAME)
+    blob = bucket.blob(destination_blob_name)
+
+    # Optional: set a generation-match precondition to avoid potential race conditions
+    # and data corruptions. The request to upload is aborted if the object's
+    # generation number does not match your precondition. For a destination
+    # object that does not yet exist, set the if_generation_match precondition to 0.
+    # If the destination object already exists in your bucket, set instead a
+    # generation-match precondition using its generation number.
+    generation_match_precondition = 0
+
+    blob.upload_from_filename(source_file_name)
+
+    print(
+        f"Tool: File {source_file_name} uploaded to {destination_blob_name}."
+    )
+
+    result = {"destination_blob_url": f"https://storage.googleapis.com/{BUCKET_NAME}/{destination_blob_name}"}
+
+    print(f"Tool: Result: {result}")
+
+    return result
+
+upload_blob("/media/AI_team/essam/repos/llms/adk_agents/AIFootballPodcast/output/text_to_speech_agent_20250622_093356.wav", None)
