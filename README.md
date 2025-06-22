@@ -45,17 +45,30 @@ AIFootballPodcast/
     ```bash
     export GOOGLE_API_KEY="YOUR_GEMINI_API_KEY"
     export FOOTBALL_DATA_API_KEY="YOUR_FOOTBALL_DATA_API_KEY"
+    export GOOGLE_GENAI_USE_VERTEXAI=FALSE
     ```
 ## Usage
 
 - To run the agents with custom queries:
   ```bash
-  python run.py --query "Ahly vs Real Madrid"
+  python run.py {query} 
+  Examples:
+
+  Podcast about a specific match: 
+  python run.py "Ahly vs Real Madrid"
+
+  Podcast from a specific date:
+  python run.py "2025-05-31"
   ```
 - To use the ADK Web UI, run:
   ```bash
   adk web
   ```
+
+## Issues
+
+- Sometimes, the text to speech agent doesn't call the `podcast_text_to_speech` tool. This is related to the instructions given to the agent.
+- If you find any issues or have suggestions, please open an issue on GitHub.
 
 ## License
 

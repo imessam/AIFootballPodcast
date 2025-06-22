@@ -590,7 +590,7 @@ class PodcastAgents:
                 name = "check_agent_called_tool",
                 model = self.text_to_speech_model,
                 description = """Checks if the agent has called the `podcast_text_to_speech` tool by searching for the completion phrase "TOOL_CALLED".
-                                 If the agent has called the `podcast_text_to_speech` tool, call the `exit_loop` tool.
+                                 If the agent has called the `podcast_text_to_speech` tool and added the "TOOL_CALLED" completion phrase, call the `exit_loop` tool.
                                  Then return the JSON containing the audio file paths for each match in each competition from the Text to Speech Agent:
                                  {podcast_audio}
                                  """,
@@ -624,7 +624,7 @@ class PodcastAgents:
         Returns:
             bool: True if the agent is created successfully, False otherwise.
         """
-        
+
         name = "file_uploader"
         description = "Uploads a file to the server."
         tools = [upload_blob]
@@ -757,6 +757,13 @@ class PodcastAgents:
             print(f"Error: Matches combiner agent not created ... ")
             return False
 
+        self.matches_parallel_agents = ParallelAgent(
+            name = "matches_parallel_agents",
+            description = "Executes the matches fetcher and web fetcher agents in parallel.",
+            sub_agents = [self.matches_fetcher_agent, self.matches_web_fetcher_agent],
+        )
+
+
         if not self.matches_parallel_agents:
             print(f"Error: Matches parallel agents not created ... ")
             return False
@@ -780,12 +787,7 @@ class PodcastAgents:
         if not self.file_uploader_agent:
             print(f"Error: File uploader agent not created ... ")
             return False
-        
-        self.matches_parallel_agents = ParallelAgent(
-            name = "matches_parallel_agents",
-            description = "Executes the matches fetcher and web fetcher agents in parallel.",
-            sub_agents = [self.matches_fetcher_agent, self.matches_web_fetcher_agent],
-        )
+    
 
         self.sequential_agent = SequentialAgent(
             name = "podcast_generation_pipeline",
