@@ -212,27 +212,24 @@ def podcast_text_to_speech(podcast_script: dict, tool_context: ToolContext) -> s
 
     return file_name  # Return the name of the saved audio file
 
-def exit_loop(tool_context: ToolContext):
+def exit_loop(podcast_audio: dict, tool_context: ToolContext) -> dict:
 
-    """Call this function ONLY when the critique indicates no further changes are needed, signaling the iterative process should end."""
+    """Call this function ONLY when the "TOOL_CALLED" phrase is received, signaling the iterative process should end."""
+    
     print(f"  [Tool Call] exit_loop triggered by {tool_context.agent_name}")
     tool_context.actions.escalate = True
 
-    podcast_audio = tool_context.state.get("podcast_audio", None)
-
-    if podcast_audio is not None:
-        print(f"  [Tool Call] podcast_audio: {podcast_audio}")
-        return podcast_audio
     # Return empty dict as tools should typically return JSON-serializable output
-    return {}
+    return podcast_audio
 
-def upload_blob(source_file_name : str,  tool_context: Optional[ToolContext]) -> dict:
+def upload_blob(source_file_name : str, output_file_name : str,  tool_context: Optional[ToolContext]) -> dict:
 
     """
         Uploads a file to a Google Cloud Storage bucket.
 
         Args:
             source_file_name (str): The path to the file to upload.
+            output_file_name (str): The uploaded file name.
         Returns:
             dict: A dictionary containing the url of the uploaded file.
     """
@@ -245,21 +242,13 @@ def upload_blob(source_file_name : str,  tool_context: Optional[ToolContext]) ->
     if BUCKET_DESTINATION is None:
         BUCKET_DESTINATION = "output"
 
-    destination_blob_name = f"{BUCKET_DESTINATION}/{source_file_name.split('/')[-1]}"
+    destination_blob_name = f"{BUCKET_DESTINATION}/{output_file_name}.wav"
 
     print(f"Tool: Uploading {source_file_name} to {destination_blob_name}")
 
     storage_client = storage.Client()
     bucket = storage_client.bucket(BUCKET_NAME)
     blob = bucket.blob(destination_blob_name)
-
-    # Optional: set a generation-match precondition to avoid potential race conditions
-    # and data corruptions. The request to upload is aborted if the object's
-    # generation number does not match your precondition. For a destination
-    # object that does not yet exist, set the if_generation_match precondition to 0.
-    # If the destination object already exists in your bucket, set instead a
-    # generation-match precondition using its generation number.
-    generation_match_precondition = 0
 
     blob.upload_from_filename(source_file_name)
 
@@ -272,5 +261,3 @@ def upload_blob(source_file_name : str,  tool_context: Optional[ToolContext]) ->
     print(f"Tool: Result: {result}")
 
     return result
-
-upload_blob("/media/AI_team/essam/repos/llms/adk_agents/AIFootballPodcast/output/text_to_speech_agent_20250622_093356.wav", None)

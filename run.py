@@ -47,7 +47,7 @@ async def main():
             print("Error: Runner not initialized.")
             return
         
-        await call_agent_async("Ahly vs Zamalek",runner, user_id, session_id)
+        await call_agent_async("Last Champions League Final",runner, user_id, session_id)
 
     except Exception as e:
         print(f"An error occurred: {e}")

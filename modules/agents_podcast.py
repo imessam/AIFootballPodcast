@@ -34,14 +34,20 @@ class PodcastAgents:
                     matches_web_fetcher_model : str = MODEL_GEMINI_2_0_FLASH,
                     web_search_model : str = MODEL_GEMINI_2_0_FLASH,
                     podcast_writer_model : str = MODEL_GEMINI_2_0_FLASH,
-                    text_to_speech_model : str = MODEL_GEMINI_2_0_FLASH):
+                    text_to_speech_model : str = MODEL_GEMINI_2_0_FLASH,
+                    files_uploader_model : str = MODEL_GEMINI_2_0_FLASH) -> None:
         
         self.matches_fetcher_model = matches_fetcher_model
         self.matches_web_fetcher_model = matches_web_fetcher_model
         self.matches_combiner_model = matches_fetcher_model
+
         self.web_search_model = web_search_model
+
         self.podcast_writer_model = podcast_writer_model
+
         self.text_to_speech_model = text_to_speech_model
+
+        self.files_uploader_model = files_uploader_model
 
         self.matches_fetcher_agent = None
         self.matches_web_fetcher_agent = None
@@ -55,6 +61,8 @@ class PodcastAgents:
         self.text_to_speech_agent = None
         self.check_agent_called_tool = None
         self.text_to_speech_agent_loop = None
+
+        self.files_uploader_agent = None
 
         self.sequential_agent = None
 
@@ -527,15 +535,19 @@ class PodcastAgents:
                 name = "check_agent_called_tool",
                 model = self.text_to_speech_model,
                 description = """Checks if the agent has called the `podcast_text_to_speech` tool by searching for the completion phrase "TOOL_CALLED".
-                                 If the agent has called the `podcast_text_to_speech` tool, call the `exit_loop` tool.""",
+                                 If the agent has called the `podcast_text_to_speech` tool, call the `exit_loop` tool.
+                                 Then return the JSON containing the audio file paths for each match in each competition from the Text to Speech Agent:
+                                 {podcast_audio}
+                                 """,
                 instruction = "You are a tool that checks if the agent has called the `podcast_text_to_speech` tool.",
-                tools = [exit_loop]
+                tools = [exit_loop],
+                output_key=output_key
             )
 
             self.text_to_speech_agent_loop = LoopAgent(
                 name = "text_to_speech_agent_loop",
                 sub_agents=[self.text_to_speech_agent, self.check_agent_called_tool],
-                max_iterations=3
+                max_iterations=3,
             )
         except Exception as e:
             print(f"Error creating {name}: {e}")
@@ -546,6 +558,95 @@ class PodcastAgents:
         return True
     
     
+    def _create_file_uploader_agent(self, custom_instruction : str) -> bool:
+
+        name = "file_uploader"
+        description = "Uploads a file to the server."
+        tools = [upload_blob]
+        output_key = "file_uploader_results"
+
+        default_instruction = """
+                                You are the File Uploader Agent.
+                                Your ONLY task is to upload podcast audio file paths to the server using the `upload_blob` tool.
+                                You will receive a JSON containing the audio file paths for each match in each competition from the Text to Speech Agent.
+                                The JSON is provided in the format:
+                                {
+                                    "competition_name_1": {
+                                        "match_id_1": {
+                                            "home_team": "Team A",
+                                            "away_team": "Team B",
+                                            "home_score": home_score,
+                                            "away_score": away_score,
+                                            "path_to_audio": "path_to_audio_1"
+                                        }
+                                    },
+                                    "competition_name_2": {
+                                        "match_id_1": {
+                                            "home_team": "Team C",
+                                            "away_team": "Team D",
+                                            "home_score": home_score,
+                                            "away_score": away_score,
+                                            "path_to_audio": "path_to_audio_2"
+                                        }
+                                    }
+                                }
+                                You MUST use the `upload_blob` tool to upload the audio file paths to the server, THIS IS YOUR ONLY TASK AND IT IS AN ORDER.
+                                For each match in each competition, upload the audio file path "path_to_audio" to the server using the `upload_blob` tool.
+                                The "source_file_name" argument for the `upload_blob` tool is the audio file path "path_to_audio".
+                                The "output_file_name" argument for the `upload_blob` tool is the "competition_name"_"match_id"_"home_team"_"away_team"_"home_score"_"away_score" for each match in each competition.
+                                DO NOT ADD SPACES TO THE OUTPUT FILE NAME "output_file_name".
+                                Do not engage in any other conversation or tasks.
+                                DO NOT RETURN UNLESS YOU HAVE COMPLETED YOUR TASK AND CALLED THE `upload_blob` tool.
+                                IF YOU CALLED THE `upload_blob` tool, RETURN THE COMPLETION PHRASE: "TOOL_CALLED".
+                                The `upload_blob` tool will return a JSON containing the URL of the uploaded file with key "destination_blob_url" for each match in each competition.
+                                Remember the URL for each match in each competition.
+                                After uploading the audio files for each match in each competition, combine the URLs for each match in each competition into a JSON containing the URLs for each match in each competition. 
+                                The JSON is provided in the format:
+                                {
+                                    "competition_name_1": {
+                                        "match_id_1": {
+                                            "home_team": "Team A",
+                                            "away_team": "Team B",
+                                            "home_score": home_score,
+                                            "away_score": away_score,
+                                            "destination_blob_url": "destination_blob_url_1"
+                                        }
+                                    },
+                                    "competition_name_2": {
+                                        "match_id_1": {
+                                            "home_team": "Team C",
+                                            "away_team": "Team D",
+                                            "home_score": home_score,
+                                            "away_score": away_score,
+                                            "destination_blob_url": "destination_blob_url_2"
+                                        }
+                                    }
+                                }
+                                Here is the JSON for each match in each competition:
+                                {podcast_audio}                                
+                            """
+
+        instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
+
+        print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
+
+        try:
+            self.file_uploader_agent = Agent(
+                name = name,
+                model = self.text_to_speech_model,
+                description = description,
+                instruction = instruction,
+                tools = [upload_blob],
+                output_key = output_key
+            )
+        except Exception as e:
+            print(f"Error creating {name}: {e}")
+            return False
+        
+        print(f"{name} created successfully.")
+
+        return True
+
     def create_agents(self, custom_instructions : dict = {}):
 
         print(f"Creating agents with custom instructions: {custom_instructions}")
@@ -554,13 +655,19 @@ class PodcastAgents:
         web_search_instruction = custom_instructions.get("web_search", "")
         podcast_writer_instruction = custom_instructions.get("podcast_writer", "")
         text_to_speech_instruction = custom_instructions.get("text_to_speech", "")
+        file_uploader_instruction = custom_instructions.get("file_uploader", "")
 
         self._create_matches_fetcher_agent(matches_fetcher_instruction)
         self._create_matches_web_fetcher_agent(matches_fetcher_instruction)
         self._create_matches_combiner_agent(matches_fetcher_instruction)
+
         self._create_web_search_agent(web_search_instruction)
+
         self._create_podcast_writer_agent(podcast_writer_instruction)
+
         self._create_text_to_speech_agent(text_to_speech_instruction)
+
+        self._create_file_uploader_agent(file_uploader_instruction)
 
         if not self.matches_fetcher_agent:
             print(f"Error: Matches fetcher agent not created ... ")
@@ -599,6 +706,10 @@ class PodcastAgents:
         if not self.text_to_speech_agent_loop:
             print(f"Error: Text to speech agent loop not created ... ")
             return
+        
+        if not self.file_uploader_agent:
+            print(f"Error: File uploader agent not created ... ")
+            return
 
         self.sequential_agent = SequentialAgent(
             name = "podcast_generation_pipeline",
@@ -608,7 +719,8 @@ class PodcastAgents:
                             self.matches_combiner_agent, 
                             self.web_search_agent, 
                             self.podcast_writer_agent, 
-                            self.text_to_speech_agent_loop
+                            self.text_to_speech_agent_loop,
+                            self.file_uploader_agent
                           ],
         )
 
