@@ -67,6 +67,16 @@ class PodcastAgents:
 
     def _create_matches_fetcher_agent(self, custom_instruction : str) -> bool:
 
+        """
+        Creates the Matches Fetcher Agent.
+
+        Args:
+            custom_instruction (str): A custom instruction for the agent.
+
+        Returns:
+            bool: True if the agent is created successfully, False otherwise.
+        """
+        
         name = "matches_fetcher"
         description = "Fetches matches from the given tool."
         tools = [get_matches_by_date]
@@ -158,6 +168,16 @@ class PodcastAgents:
     
     def _create_matches_web_fetcher_agent(self, custom_instruction : str) -> bool:
 
+        """
+        Creates the Matches Web Fetcher Agent.
+
+        Args:
+            custom_instruction (str): A custom instruction for the agent.
+
+        Returns:
+            bool: True if the agent is created successfully, False otherwise.
+        """
+        
         name = "matches_web_fetcher"
         description = "Fetches matches from web."
         tools = [google_search]
@@ -220,6 +240,17 @@ class PodcastAgents:
     
     def _create_matches_combiner_agent(self, custom_instruction : str) -> bool:
 
+        """
+        Creates the Matches Combiner Agent.
+
+        Args:
+            custom_instruction (str): A custom instruction for the agent.
+
+        Returns:
+            bool: True if the agent is created successfully, False otherwise.
+
+        """
+        
         name = "matches_combiner_agent"
         description = "Combines matches."
         tools = []
@@ -287,6 +318,17 @@ class PodcastAgents:
 
     
     def _create_web_search_agent(self, custom_instruction : str) -> bool:
+
+        """
+        Creates the Web Search Agent.
+
+        Args:
+            custom_instruction (str): A custom instruction for the agent.
+
+        Returns:
+            bool: True if the agent is created successfully, False otherwise.
+
+        """
 
         name = "web_search_agent"
         description = "Performs web searches."
@@ -368,6 +410,17 @@ class PodcastAgents:
         return True
     
     def _create_podcast_writer_agent(self, custom_instruction : str) -> bool:
+
+        """
+        Creates the Podcast Writer Agent.
+
+        Args:
+            custom_instruction (str): A custom instruction for the agent.
+
+        Returns:
+            bool: True if the agent is created successfully, False otherwise.
+
+        """
 
         name = "podcast_writer_agent"
         description = "Writes podcasts."
@@ -454,6 +507,16 @@ class PodcastAgents:
     
     def _create_text_to_speech_agent(self, custom_instruction : str) -> bool:
 
+        """
+        Creates the Text to Speech Agent.
+
+        Args:
+            custom_instruction (str): A custom instruction for the agent.
+
+        Returns:
+            bool: True if the agent is created successfully, False otherwise.
+        """
+        
         name = "text_to_speech_agent"
         description = "Converts text to speech."
         tools = [podcast_text_to_speech]
@@ -539,7 +602,7 @@ class PodcastAgents:
             self.text_to_speech_agent_loop = LoopAgent(
                 name = "text_to_speech_agent_loop",
                 sub_agents=[self.text_to_speech_agent, self.check_agent_called_tool],
-                max_iterations=3,
+                max_iterations=10,
             )
         except Exception as e:
             print(f"Error creating {name}: {e}")
@@ -552,6 +615,16 @@ class PodcastAgents:
     
     def _create_file_uploader_agent(self, custom_instruction : str) -> bool:
 
+        """
+        Creates the File Uploader Agent.
+
+        Args:
+            custom_instruction (str): A custom instruction for the agent.
+
+        Returns:
+            bool: True if the agent is created successfully, False otherwise.
+        """
+        
         name = "file_uploader"
         description = "Uploads a file to the server."
         tools = [upload_blob]
