@@ -13,8 +13,6 @@ logging.basicConfig(level=logging.ERROR)
 from dotenv import load_dotenv
 
 from modules.agents_podcast import PodcastAgents
-from modules.callbacks import *
-from modules.utils import *
 
 load_dotenv()
 
@@ -25,7 +23,7 @@ print(f"GOOGLE_GENAI_USE_VERTEXAI Key set: {'Yes' if os.environ.get('GOOGLE_GENA
 
 # --- Define Model Constants for easier use ---
 
-async def main():
+async def main(query: str):
 
     try:
         podcast_agent_object = PodcastAgents()
@@ -36,21 +34,21 @@ async def main():
         # Create the session service and runner.
         await podcast_agent_object.init_session()
         await podcast_agent_object.init_runner()
-
-
-        runner = podcast_agent_object.runner
-        app_name = podcast_agent_object.app_name
-        user_id = podcast_agent_object.user_id
-        session_id = podcast_agent_object.session_id
-
-        if runner is None:
-            print("Error: Runner not initialized.")
-            return
         
-        await call_agent_async("Last Champions League Final",runner, user_id, session_id)
+        response = await podcast_agent_object.query(query=query)
+
+        print(f"Response from the podcast agent: {response}")
 
     except Exception as e:
         print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+
+    if len(sys.argv) < 2:
+        print("Usage: python run.py <query>")
+        sys.exit(1)
+
+    # Get the query from command line arguments
+    query = sys.argv[1] 
+
+    asyncio.run(main(query=query))

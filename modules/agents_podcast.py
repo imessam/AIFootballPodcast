@@ -10,6 +10,7 @@ import logging
 logging.basicConfig(level=logging.ERROR)
 
 from google.adk.agents import Agent, SequentialAgent, ParallelAgent, LoopAgent
+from google.adk.tools import google_search  # Import the tool
 
 from dotenv import load_dotenv
 
@@ -40,30 +41,21 @@ class PodcastAgents:
         self.matches_fetcher_model = matches_fetcher_model
         self.matches_web_fetcher_model = matches_web_fetcher_model
         self.matches_combiner_model = matches_fetcher_model
-
         self.web_search_model = web_search_model
-
         self.podcast_writer_model = podcast_writer_model
-
         self.text_to_speech_model = text_to_speech_model
-
         self.files_uploader_model = files_uploader_model
 
         self.matches_fetcher_agent = None
         self.matches_web_fetcher_agent = None
         self.matches_parallel_agents = None
         self.matches_combiner_agent = None
-
         self.web_search_agent = None
-
         self.podcast_writer_agent = None
-
         self.text_to_speech_agent = None
         self.check_agent_called_tool = None
         self.text_to_speech_agent_loop = None
-
         self.files_uploader_agent = None
-
         self.sequential_agent = None
 
         self.app_name = "football_podcast_app"
@@ -647,8 +639,19 @@ class PodcastAgents:
 
         return True
 
-    def create_agents(self, custom_instructions : dict = {}):
+    def create_agents(self, custom_instructions : dict = {}) -> bool:
 
+        """
+        Creates the agents for the podcast generation pipeline.
+
+        Args:
+            custom_instructions (dict): A dictionary of custom instructions for each agent.
+                The keys are the names of the agents, and the values are the custom instructions.
+                The custom instructions are used to modify the default instruction for each agent.
+
+        Returns:
+            bool: True if all the agents are created successfully, False otherwise.
+        """
         print(f"Creating agents with custom instructions: {custom_instructions}")
 
         matches_fetcher_instruction = custom_instructions.get("matches_fetcher", "")
@@ -671,45 +674,45 @@ class PodcastAgents:
 
         if not self.matches_fetcher_agent:
             print(f"Error: Matches fetcher agent not created ... ")
-            return
+            return False
         
         if not self.matches_web_fetcher_agent:
             print(f"Error: Matches web fetcher agent not created ... ")
-            return
+            return False
         
         if not self.matches_combiner_agent:
             print(f"Error: Matches combiner agent not created ... ")
-            return
+            return False
+
+        if not self.matches_parallel_agents:
+            print(f"Error: Matches parallel agents not created ... ")
+            return False
+
+        if not self.web_search_agent:
+            print(f"Error: Web search agent not created ... ")
+            return False
+
+        if not self.podcast_writer_agent:
+            print(f"Error: Podcast writer agent not created ... ")
+            return False
+
+        if not self.text_to_speech_agent:
+            print(f"Error: Text to speech agent not created ... ")
+            return False
+
+        if not self.text_to_speech_agent_loop:
+            print(f"Error: Text to speech agent loop not created ... ")
+            return False
+        
+        if not self.file_uploader_agent:
+            print(f"Error: File uploader agent not created ... ")
+            return False
         
         self.matches_parallel_agents = ParallelAgent(
             name = "matches_parallel_agents",
             description = "Executes the matches fetcher and web fetcher agents in parallel.",
             sub_agents = [self.matches_fetcher_agent, self.matches_web_fetcher_agent],
         )
-
-        if not self.matches_parallel_agents:
-            print(f"Error: Matches parallel agents not created ... ")
-            return
-
-        if not self.web_search_agent:
-            print(f"Error: Web search agent not created ... ")
-            return
-
-        if not self.podcast_writer_agent:
-            print(f"Error: Podcast writer agent not created ... ")
-            return
-
-        if not self.text_to_speech_agent:
-            print(f"Error: Text to speech agent not created ... ")
-            return
-
-        if not self.text_to_speech_agent_loop:
-            print(f"Error: Text to speech agent loop not created ... ")
-            return
-        
-        if not self.file_uploader_agent:
-            print(f"Error: File uploader agent not created ... ")
-            return
 
         self.sequential_agent = SequentialAgent(
             name = "podcast_generation_pipeline",
@@ -726,9 +729,9 @@ class PodcastAgents:
 
         print("Agents created successfully.")
 
-        return
+        return True
 
-    async def init_session(self):
+    async def init_session(self) -> bool:
 
         print(f"Initializing session: {self.app_name}, {self.user_id}, {self.session_id}")
 
@@ -738,22 +741,34 @@ class PodcastAgents:
 
         print(f"Session initialized: {self.app_name}, {self.user_id}, {self.session_id}")
 
-        return 
+        return True
     
-    async def init_runner(self):
+    async def init_runner(self) -> bool:
 
         print(f"Initializing runner: {self.app_name}, {self.user_id}, {self.session_id}")
 
         if not self.session_service:
             print(f"Error: Session service not initialized ... ")
-            return
+            return False
         
         if not self.sequential_agent:
             print(f"Error: Sequential agent not initialized ... ")
-            return
+            return False
 
         self.runner = create_runner(self.sequential_agent, self.session_service, self.app_name)
 
         print(f"Runner initialized: {self.app_name}, {self.user_id}, {self.session_id}")
 
-        return
+        return True
+    
+    async def query(self, query : str) -> str | None:
+        """
+        Queries the agent with the given query and returns the response.
+
+        Args:
+            query: The query to ask the agent.
+
+        Returns:
+            The response from the agent, or None if no final response is produced.
+        """
+        return await call_agent_async(query, self.runner, self.user_id, self.session_id)

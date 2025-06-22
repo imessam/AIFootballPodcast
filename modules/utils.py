@@ -53,6 +53,18 @@ def create_runner(agent : BaseAgent,
 
     # --- Runner ---
     # Key Concept: Runner orchestrates the agent execution loop.
+    """
+    Creates a Runner for the given agent and session service.
+
+    Args:
+        agent: The Agent to run.
+        session_service: The InMemorySessionService to store and retrieve
+            conversation history and state.
+        app_name: The name of the application that the agent is part of.
+
+    Returns:
+        A Runner object that can be used to start the agent execution loop.
+    """
     runner = Runner(
         agent=agent, # The agent we want to run
         app_name=app_name,   # Associates runs with our app
@@ -64,39 +76,62 @@ def create_runner(agent : BaseAgent,
 
 # @title Define Agent Interaction Function
 async def call_agent_async(query: str, runner : Runner, user_id, session_id) -> str | None:
-  """Sends a query to the agent and prints the final response."""
-  print(f"\n>>> User Query: {query}")
+    """
+    Calls the agent with the given query, user_id, and session_id asynchronously.
 
-  # Prepare the user's message in ADK format
-  content = types.Content(role='user', parts=[types.Part(text=query)])
+    Args:
+        query (str): The user's query to the agent.
+        runner (Runner): The Runner instance to use for the agent.
+        user_id (str): The unique identifier for the user.
+        session_id (str): The unique identifier for the session.
 
-  final_response_text = "Agent did not produce a final response." # Default
+    Returns:
+        str | None: The agent's final response to the query, or None if no final response is produced.
+    """
+    print(f"\n>>> User Query: {query}")
 
-  agents_final_responses = {}
+    # Prepare the user's message in ADK format
+    content = types.Content(role='user', parts=[types.Part(text=query)])
 
-  # Key Concept: run_async executes the agent logic and yields Events.
-  # We iterate through events to find the final answer.
-  async for event in runner.run_async(user_id=user_id, session_id=session_id, new_message=content):
-      # You can uncomment the line below to see *all* events during execution
-      print(f"  [Event] Author: {event.author}, Type: {type(event).__name__}, Final: {event.is_final_response()}, Content: {event.content}")
+    final_response_text = "Agent did not produce a final response." # Default
 
-      # Key Concept: is_final_response() marks the concluding message for the turn.
-      if event.is_final_response():
-          if event.content and event.content.parts:
-             # Assuming text response in the first part
-             final_response_text = event.content.parts[0].text
-          elif event.actions and event.actions.escalate: # Handle potential errors/escalations
-             final_response_text = f"Agent escalated: {event.error_message or 'No specific message.'}"
-          # Add more checks here if needed (e.g., specific error codes)
-          agents_final_responses[event.author] = final_response_text # Stop processing events once the final response is found
+    agents_final_responses = {}
 
-  print(f"<<< Agent Response: {final_response_text}")
+    # Key Concept: run_async executes the agent logic and yields Events.
+    # We iterate through events to find the final answer.
+    async for event in runner.run_async(user_id=user_id, session_id=session_id, new_message=content):
+        # You can uncomment the line below to see *all* events during execution
+        print(f"  [Event] Author: {event.author}, Type: {type(event).__name__}, Final: {event.is_final_response()}, Content: {event.content}")
 
-  return final_response_text
+        # Key Concept: is_final_response() marks the concluding message for the turn.
+        if event.is_final_response():
+            if event.content and event.content.parts:
+                # Assuming text response in the first part
+                final_response_text = event.content.parts[0].text
+            elif event.actions and event.actions.escalate: # Handle potential errors/escalations
+                final_response_text = f"Agent escalated: {event.error_message or 'No specific message.'}"
+            # Add more checks here if needed (e.g., specific error codes)
+            agents_final_responses[event.author] = final_response_text # Stop processing events once the final response is found
+
+    print(f"<<< Agent Response: {final_response_text}")
+
+    return final_response_text
 
 def wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
-        with wave.open(filename, "wb") as wf:
-            wf.setnchannels(channels)
-            wf.setsampwidth(sample_width)
-            wf.setframerate(rate)
-            wf.writeframes(pcm)
+    
+    """
+    Saves PCM audio data to a WAV file.
+
+    Args:
+        filename (str): The name of the file to which the audio data will be saved.
+        pcm (bytes): The PCM audio data to be saved.
+        channels (int, optional): The number of audio channels. Defaults to 1.
+        rate (int, optional): The sample rate (samples per second). Defaults to 24000.
+        sample_width (int, optional): The sample width in bytes. Defaults to 2.
+    """
+
+    with wave.open(filename, "wb") as wf:
+        wf.setnchannels(channels)
+        wf.setsampwidth(sample_width)
+        wf.setframerate(rate)
+        wf.writeframes(pcm)

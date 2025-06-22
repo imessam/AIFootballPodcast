@@ -11,7 +11,6 @@ from typing import Dict, Optional, Union
 from dotenv import load_dotenv
 
 from google.adk.tools.tool_context import ToolContext
-from google.adk.tools import google_search  # Import the tool
 from google import genai
 from google.genai import types
 from google.cloud import storage
@@ -198,7 +197,7 @@ def podcast_text_to_speech(podcast_script: dict, tool_context: ToolContext) -> s
     
     data = response.candidates[0].content.parts[0].inline_data.data
 
-    out_dir = os.path.join(base_path, "output")
+    out_dir = "output"
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 

@@ -26,7 +26,3 @@ adk deploy cloud_run \
 --app_name=$APP_NAME \
 --with_ui \
 $AGENT_PATH
-
-# gcloud run services update $SERVICE_NAME \
-# --add-volume name=VOLUME_NAME,type=cloud-storage,bucket=BUCKET_NAME \
-# --add-volume-mount volume=VOLUME_NAME,mount-path=MOUNT_PATH
