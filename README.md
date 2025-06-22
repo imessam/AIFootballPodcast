@@ -1,6 +1,14 @@
 # AIFootballPodcast
 AIFootballPodcast leverages Google's Agent Development Kit (ADK) as its agent framework, utilizes Gemini models for both large language model (LLM) tasks and text-to-speech (TTS) synthesis, and employs the Google Search API for web research. The system orchestrates a pipeline of specialized agents to automate the creation of football match podcasts, from data collection and research to script generation, audio synthesis, and cloud publishing.
 
+## Live demo deployed on Google Cloud run.
+
+- URL: [https://football-podcast-agent-388890953707.us-central1.run.app](https://football-podcast-agent-388890953707.us-central1.run.app)
+
+## Youtube Demo Video.
+
+- URL: [https://www.youtube.com/](https://www.youtube.com)
+
 ## Features
 
 - Fetches football match data from the Football Data API and Google Search.
