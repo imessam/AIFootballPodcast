@@ -518,16 +518,16 @@ class PodcastAgents:
         """
         
         name = "text_to_speech_agent"
-        description = "Converts text to speech."
-        tools = [podcast_text_to_speech]
+        description = "Converts podcast scripts to speech."
+        tools = [podcast_script_text_to_speech]
         output_key = "podcast_audio"
         COMPLETION_PHRASE = "TOOL_CALLED"
 
 
         default_instruction = """
                                 You are the Text to Speech Agent.
-                                Your ONLY task is to convert podcast text to speech using the `podcast_text_to_speech` tool.
-                                You MUST use the `podcast_text_to_speech` tool to convert the podcast text to speech.
+                                Your ONLY task is to convert podcasts scripts text to speech using the `podcast_script_text_to_speech` tool.
+                                **You MUST use the `podcast_script_text_to_speech` tool to convert the podcast text to speech.**
                                 You will receive podcast scripts for each match in each competition from the Podcast Writer Agent.
                                 The podcast scripts are provided in the format:
                                 {
@@ -538,11 +538,11 @@ class PodcastAgents:
                                         "match_id_1": "podcast_script"
                                     }
                                 }
-                                Pass the "podcast_script" for each match in each competition to the `podcast_text_to_speech` tool to convert it to speech.
-                                The `podcast_text_to_speech` tool will return a string containing the path to the audio file "path_to_audio".
-                                DO NOT write any text, you only need to pass the "podcast_script" for each match in each competition to the `podcast_text_to_speech` tool.
-                                YOU MUST use the `podcast_text_to_speech` tool to convert the podcast script to speech, THIS IS YOUR ONLY TASK AND IT IS AN ORDER.
-                                Keep remembering the "path_to_audio" returned by the `podcast_text_to_speech` tool for each match in each competition.
+                                Pass the "podcast_script" for each match in each competition to the `podcast_script_text_to_speech` tool to convert it to speech.
+                                The `podcast_script_text_to_speech` tool will return a string containing the path to the audio file "path_to_audio".
+                                DO NOT write any text, you only need to pass the "podcast_script" for each match in each competition to the `podcast_script_text_to_speech` tool.
+                                **YOU MUST use the `podcast_script_text_to_speech` tool to convert the podcast script to speech, THIS IS YOUR ONLY TASK AND IT IS AN ORDER.**
+                                Keep remembering the "path_to_audio" returned by the `podcast_script_text_to_speech` tool for each match in each competition.
                                 After converting all the podcast scripts to speech for each match in each competition, combine all the "path_to_audio" for all matches in a single JSON, eg:
                                 {
                                     "competition_name_1": {
@@ -565,8 +565,8 @@ class PodcastAgents:
                                     }
                                 }
                                 Do not engage in any other conversation or tasks.
-                                DO NOT RETURN UNLESS YOU HAVE COMPLETED YOUR TASK AND CALLED THE `podcast_text_to_speech` tool.
-                                IF YOU CALLED THE `podcast_text_to_speech` tool, RETURN THE COMPLETION PHRASE: "TOOL_CALLED".
+                                DO NOT RETURN UNLESS YOU HAVE COMPLETED YOUR TASK AND CALLED THE `podcast_script_text_to_speech` tool.
+                                IF YOU CALLED THE `podcast_script_text_to_speech` tool, RETURN THE COMPLETION PHRASE: "TOOL_CALLED".
                                 Here are the podcast scripts you need to convert to speech:
                                 {podcast_scripts}
                             """
@@ -581,7 +581,7 @@ class PodcastAgents:
                 model = self.text_to_speech_model,
                 description = description,
                 instruction = instruction,
-                tools = [podcast_text_to_speech],
+                tools = [podcast_script_text_to_speech],
                 before_agent_callback = check_empty_agents_state,
                 output_key = output_key
             )
@@ -589,12 +589,12 @@ class PodcastAgents:
             self.check_agent_called_tool = Agent(
                 name = "check_agent_called_tool",
                 model = self.text_to_speech_model,
-                description = """Checks if the agent has called the `podcast_text_to_speech` tool by searching for the completion phrase "TOOL_CALLED".
-                                 If the agent has called the `podcast_text_to_speech` tool and added the "TOOL_CALLED" completion phrase, call the `exit_loop` tool.
+                instruction = """Checks if the agent has called the `podcast_script_text_to_speech` tool by searching for the completion phrase "TOOL_CALLED".
+                                 If the agent has called the `podcast_script_text_to_speech` tool and added the "TOOL_CALLED" completion phrase, call the `exit_loop` tool.
                                  Then return the JSON containing the audio file paths for each match in each competition from the Text to Speech Agent:
                                  {podcast_audio}
                                  """,
-                instruction = "You are a tool that checks if the agent has called the `podcast_text_to_speech` tool.",
+                description = "You are a tool that checks if the agent has called the `podcast_script_text_to_speech` tool.",
                 tools = [exit_loop],
                 output_key=output_key
             )
