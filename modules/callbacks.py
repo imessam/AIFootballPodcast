@@ -37,15 +37,18 @@ def check_empty_agents_state(callback_context: CallbackContext) -> Optional[type
         print(f"[Callback] Agent {agent_name} has 'podcast_scripts' in state.")
 
         state_to_check = current_state.get("podcast_scripts", "{}")
+
+    elif (agent_name == "file_uploader" or agent_name == "check_agent_called_tool") and "podcast_audio" in current_state:
+        print(f"[Callback] Agent {agent_name} has 'podcast_audio' in state.")
+
+        state_to_check = current_state.get("podcast_audio", "{}")
+
     else:
         print(f"[Callback] Agent {agent_name} does not have expected state keys.")
 
     
     state_to_check_json = parse_json_markdown(state_to_check)
 
-    # print(f"[Callback] Extracted JSON: {state_to_check_json}")
-
-    # state_to_check_json = json.loads(state_to_check_json) if state_to_check_json else {}
 
     print(f"[Callback] Check State JSON: {state_to_check_json}, type: {type(state_to_check_json)}, length: {len(state_to_check_json)}")
 

@@ -597,7 +597,8 @@ class PodcastAgents:
                                  """,
                 description = "You are a tool that checks if the agent has called the `podcast_script_text_to_speech` tool.",
                 tools = [exit_loop],
-                output_key=output_key
+                output_key=output_key,
+                before_agent_callback = check_empty_agents_state,
             )
 
             self.text_to_speech_agent_loop = LoopAgent(
@@ -703,7 +704,8 @@ class PodcastAgents:
                 description = description,
                 instruction = instruction,
                 tools = [upload_blob],
-                output_key = output_key
+                output_key = output_key,
+                before_agent_callback = check_empty_agents_state,
             )
         except Exception as e:
             print(f"Error creating {name}: {e}")
