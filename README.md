@@ -1,13 +1,23 @@
 # AIFootballPodcast
-AIFootballPodcast leverages Google's Agent Development Kit (ADK) as its agent framework, utilizes Gemini models for both large language model (LLM) tasks and text-to-speech (TTS) synthesis, and employs the Google Search API for web research. The system orchestrates a pipeline of specialized agents to automate the creation of football match podcasts, from data collection and research to script generation, audio synthesis, and cloud publishing.
+AIFootballPodcast leverages Google's Agent Development Kit (ADK) as its agent framework, utilizes Gemini models for both large language model (LLM) tasks and text-to-speech (TTS), and employs the Google Search API for web research. The system orchestrates a pipeline of specialized agents to automate the creation of football match podcasts, from data collection and research to script generation, audio synthesis, and cloud publishing.
+The project is part of [Google's ADK hackathon](https://googlecloudmultiagents.devpost.com/).
 
-## Live demo deployed on Google Cloud run.
+
+## Agents Flow Diagram.
+![AIFootballPodcastDiagram](assets/diagram.png)
+
+## Models used:
+
+- Gemini LLM for text generation: [Gemini 2.0 flash](https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-0-flash)
+- Gemini TTS for podcast script text to speech: [Gemini 2.5 flash preview-tts](https://ai.google.dev/gemini-api/docs/models#gemini-2.5-flash-preview-tts)
+
+## ADK Web UI live demo deployed on Google Cloud run.
 
 - URL: [https://football-podcast-agent-388890953707.us-central1.run.app](https://football-podcast-agent-388890953707.us-central1.run.app)
 
 ## Youtube Demo Video.
 
-- URL: [https://www.youtube.com/](https://www.youtube.com)
+[![FootballPodcastDemo](https://img.youtube.com/vi/dQw4w9WgXcQ/0.jpg)](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
 
 ## Features
 
@@ -77,6 +87,13 @@ AIFootballPodcast/
 
 - Sometimes, the text to speech agent doesn't call the `podcast_text_to_speech` tool. This is related to the instructions given to the agent.
 - If you find any issues or have suggestions, please open an issue on GitHub.
+
+## TODO
+- [ ] Support other models for LLM and TTS, open or closed sources.
+- [ ] Support multiple languages.
+- [ ] Longer and more informative podcast scripts.
+- [ ] Different podcast speakers voices and characters.
+- [ ] Generate animated podcasts.
 
 ## License
 
