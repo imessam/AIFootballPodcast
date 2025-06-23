@@ -155,8 +155,22 @@ def podcast_script_text_to_speech(podcast_script: dict, tool_context: ToolContex
 
     content = podcast_script.get("content", "")
 
-    prompt = f"""TTS the following conversation between {speaker_1} and {speaker_2}:
-           {content}"""
+    disclaimer = """
+                    Disclaimer: The following conversation is a fictional conversation between two speakers.
+                    The whole script is AI generated and does not represent any real conversation.
+                    Do not take it seriously. It is meant for entertainment purposes only.
+                    Enjoy.
+                """
+    disclaimer_speaker = speaker_1
+
+    prompt = f"""
+            You have to convert a podcast script text to speech between two speakers.
+            But first, you have to say a disclaimer first, the disclaimer speaker is {disclaimer_speaker}.
+            So say in a serious tone: {disclaimer}
+            Take into consideration the speakers names to know their genders.
+            Then, you have to TTS the following conversation between {speaker_1} and {speaker_2}:
+            {content}
+           """
     
     print(f"--- Tool : {tool_name} Generating audio for prompt: {prompt} ---")
 
