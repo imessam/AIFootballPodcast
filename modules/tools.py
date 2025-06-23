@@ -123,13 +123,18 @@ def get_matches_by_date(date_str: str , tool_context: ToolContext) -> dict:
     return result
 
 
-def podcast_text_to_speech(podcast_script: dict, tool_context: ToolContext) -> str:
+def podcast_script_text_to_speech(podcast_script: dict, tool_context: ToolContext) -> str:
 
     """
-        Converts a podcast script (transcript of a conversation) to speech.
+        Converts a podcast script text to speech.
 
         Args:
-            podcast_script (dict): A dictionary containing the transcript of the conversation to be converted to speech, with keys "speaker_1", "speaker_2", and "content".
+            podcast_script (dict): A dictionary containing the script of the podcast to be converted to speech, with keys "speaker_1", "speaker_2", and "content", eg:
+            {
+                "speaker_1": "Ahmed",
+                "speaker_2": "Fatima",
+                "content": "Ahmed: "ahmed_first_transcript"\nFatima: "fatima_first_transcript"\nAhmed: "ahmed_second_transcript"\nFatima: "fatima_second_transcript" etc."
+            } 
         Returns:
             str: The path of the saved audio file containing the generated speech.
     """ 
@@ -211,15 +216,18 @@ def podcast_text_to_speech(podcast_script: dict, tool_context: ToolContext) -> s
 
     return file_name  # Return the name of the saved audio file
 
-def exit_loop(podcast_audio: dict, tool_context: ToolContext) -> dict:
+def exit_loop(tool_context: ToolContext) -> Optional[dict]:
 
     """Call this function ONLY when the "TOOL_CALLED" phrase is received, signaling the iterative process should end."""
     
     print(f"  [Tool Call] exit_loop triggered by {tool_context.agent_name}")
-    tool_context.actions.escalate = True
+
+    if tool_context.state.get("podcast_audio", None) is not None:
+        tool_context.actions.escalate = True
+        return tool_context.state["podcast_audio"]
 
     # Return empty dict as tools should typically return JSON-serializable output
-    return podcast_audio
+    return None
 
 def upload_blob(source_file_name : str, output_file_name : str,  tool_context: Optional[ToolContext]) -> dict:
 
@@ -230,9 +238,13 @@ def upload_blob(source_file_name : str, output_file_name : str,  tool_context: O
             source_file_name (str): The path to the file to upload.
             output_file_name (str): The uploaded file name.
         Returns:
-            dict: A dictionary containing the url of the uploaded file.
+            dict: A dictionary containing the url of the uploaded file, or an error message if the upload fails.
     """
-   
+    
+    if not os.path.exists(source_file_name):
+        print(f"Tool: File {source_file_name} does not exist.")
+        return {"error": f"File {source_file_name} does not exist."}
+
     BUCKET_NAME = os.environ.get("BUCKET_NAME", None)
     if BUCKET_NAME is None:
         BUCKET_NAME = "gemini_podacst_agent_bucket"
