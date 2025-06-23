@@ -165,9 +165,9 @@ def podcast_script_text_to_speech(podcast_script: dict, tool_context: ToolContex
 
     prompt = f"""
             You have to convert a podcast script text to speech between two speakers.
-            But first, you have to say a disclaimer first, the disclaimer speaker is {disclaimer_speaker}.
+            But first, you have to say a disclaimer first.
             So say in a serious tone: {disclaimer}
-            Take into consideration the speakers names to know their genders.
+            {speaker_1} is a man and {speaker_2} is a woman.
             Then, you have to TTS the following conversation between {speaker_1} and {speaker_2}:
             {content}
            """

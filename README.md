@@ -8,7 +8,7 @@ The project is part of [Google's ADK hackathon](https://googlecloudmultiagents.d
 
 ## Models used:
 
-- Gemini LLM for text generation: [Gemini 2.0 flash](https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-0-flash)
+- Gemini LLM for text generation: [Gemini 2.0 flash](https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-0-flash) and [Gemini 2.5 Pro](https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-5-pro)
 - Gemini TTS for podcast script text to speech: [Gemini 2.5 flash preview-tts](https://ai.google.dev/gemini-api/docs/models#gemini-2.5-flash-preview-tts)
 
 ## ADK Web UI live demo deployed on Google Cloud run.

@@ -28,14 +28,15 @@ print(f"GOOGLE_GENAI_USE_VERTEXAI Key set: {'Yes' if os.environ.get('GOOGLE_GENA
 # --- Define Model Constants for easier use ---
 
 MODEL_GEMINI_2_0_FLASH = "gemini-2.0-flash"
+MODEL_GEMINI_2_0_PRO = "gemini-2.5-pro"
 
 class PodcastAgents:
     def __init__(self, 
                     matches_fetcher_model : str = MODEL_GEMINI_2_0_FLASH,
                     matches_web_fetcher_model : str = MODEL_GEMINI_2_0_FLASH,
                     web_search_model : str = MODEL_GEMINI_2_0_FLASH,
-                    podcast_writer_model : str = MODEL_GEMINI_2_0_FLASH,
-                    text_to_speech_model : str = MODEL_GEMINI_2_0_FLASH,
+                    podcast_writer_model : str = MODEL_GEMINI_2_0_PRO,
+                    text_to_speech_model : str = MODEL_GEMINI_2_0_PRO,
                     files_uploader_model : str = MODEL_GEMINI_2_0_FLASH) -> None:
         
         self.matches_fetcher_model = matches_fetcher_model
