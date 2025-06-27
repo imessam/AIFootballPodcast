@@ -56,8 +56,18 @@ def check_empty_agents_state(callback_context: CallbackContext) -> Optional[type
     if len(state_to_check_json.keys()) == 0:
         print(f"[Callback] State condition 'empty_state' met: Skipping agent {agent_name}.")
         # Return Content to skip the agent's run
+
+
+        custom_response = f"""
+            ```json
+            {{
+                "error": "Agent {agent_name} skipped by before_agent_callback due to state."
+            }}
+            ```
+        """
+
         return types.Content(
-            parts=[types.Part(text=f"Agent {agent_name} skipped by before_agent_callback due to state.")],
+            parts=[types.Part(text=custom_response)],
             role="model" # Assign model role to the overriding response
         )
     else:

@@ -188,6 +188,9 @@ class PodcastAgents:
                                 You are the Match Web Fetcher Agent.
                                 Your ONLY task is to fetch matches from the web for the given date using the `google_search` tool.
                                 The date is provided in the format YYYY-MM-DD.
+                                Search only for popular football competitions and matches.
+                                Do not search for friendly competitions or matches.
+                                Do not return more than 5 matches.
                                 In case of matches are found, group the matches in the same competition. Return the matches in this exact format:
                                 {
                                     "Premier League":
@@ -283,6 +286,8 @@ class PodcastAgents:
                                 }
 
                                 Combine the matches from both sources into a single dictionary.
+                                Do not duplicate any matches.
+                                If you found the same match in both sources, take the match from the source that returned it first.
                                 If one source returns matches and the other returns an empty JSON object, return the matches from the source that returns matches.
                                 If you receive an empty JSON object from both sources, that means no matches were found, so you should not combine anything, you should return an empty JSON object.
                                 Output the combined matches in the same format as above.
