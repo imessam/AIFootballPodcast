@@ -54,8 +54,6 @@ class PodcastAgents:
         self.web_search_agent = None
         self.podcast_writer_agent = None
         self.text_to_speech_agent = None
-        self.check_agent_called_tool = None
-        self.text_to_speech_agent_loop = None
         self.files_uploader_agent = None
         self.sequential_agent = None
 
@@ -91,7 +89,6 @@ class PodcastAgents:
                                 In case of matches are found, the result will contain a dictionary with match ID as the key,
                                 and a dictionary containing the competition, home team, away team, home score and away score as the value if matches are found,
                                 or an error message if no matches are found, eg:
-
                                 {
                                     "status": "success",
                                     "matches": {
@@ -119,28 +116,36 @@ class PodcastAgents:
                                 }
 
                                 Group the matches in the same copetition. Return the matches in the format:
-                                {
-                                    "Premier League":
-                                    {
-                                        "match_id_1": {
-                                            "home_team": "Team A",
-                                            "away_team": "Team B",
-                                            "home_score": 2,
-                                            "away_score": 1
-                                        }
-                                    },
-                                    "La Liga":
-                                    {
-                                        "match_id_1": {
-                                            "home_team": "Team C",
-                                            "away_team": "Team D",
-                                            "home_score": 3,
-                                            "away_score": 0
+                                {   "status": "success",
+                                    "matches": {
+                                        "Premier League":
+                                        {
+                                            "match_id_1": {
+                                                "home_team": "Team A",
+                                                "away_team": "Team B",
+                                                "home_score": 2,
+                                                "away_score": 1
+                                            }
+                                        },
+                                        "La Liga":
+                                        {
+                                            "match_id_1": {
+                                                "home_team": "Team C",
+                                                "away_team": "Team D",
+                                                "home_score": 3,
+                                                "away_score": 0
+                                            }
                                         }
                                     }
                                 }
-                                If no matches are found, return an empty JSON object: {}.
+                                If no matches are found, return a JSON object with a status key set to "error" and an error message, eg:
+                                {
+                                    "status": "error",
+                                    "error": "No matches found for the given date."
+                                }
                                 You will receive the date to fetch matches for in the format YYYY-MM-DD.
+                                Only return responses as JSON objects.
+                                Do not return any other text or messages.
                                 Do not engage in any other conversation or tasks.
                             """
 
@@ -186,36 +191,46 @@ class PodcastAgents:
 
         default_instruction = """
                                 You are the Match Web Fetcher Agent.
-                                Your ONLY task is to fetch matches from the web for the given date using the `google_search` tool.
-                                The date is provided in the format YYYY-MM-DD.
+                                Your ONLY task is to fetch matches from the web using the `google_search` tool.
+                                You search only if the user asked to search for matches for a given date.
+                                The date might be provided in the format YYYY-MM-DD, or like "Today", "Tomorrow", "Yesterday".
                                 Search only for popular football competitions and matches.
                                 Do not search for friendly competitions or matches.
-                                Do not return more than 5 matches.
+                                DO NOT RETURN MATCHES that are not important or not popular.
+                                DO NOT RETURN ALL THE MATCHES.
+                                DO NOT RETURN MORE THAN 5 MATCHES.
                                 In case of matches are found, group the matches in the same competition. Return the matches in this exact format:
-                                {
-                                    "Premier League":
-                                    {
-                                        "match_id_1": {
-                                            "home_team": "Team A",
-                                            "away_team": "Team B",
-                                            "home_score": home_score,
-                                            "away_score": away_score
-                                        }
-                                    },
-                                    "La Liga":
-                                    {
-                                        "match_id_1": {
-                                            "home_team": "Team C",
-                                            "away_team": "Team D",
-                                            "home_score": home_score,
-                                            "away_score": away_score
+                                {   "status": "success",
+                                    "matches": {
+                                        "Premier League":
+                                        {
+                                            "match_id_1": {
+                                                "home_team": "Team A",
+                                                "away_team": "Team B",
+                                                "home_score": home_score,
+                                                "away_score": away_score
+                                            }
+                                        },
+                                        "La Liga":
+                                        {
+                                            "match_id_1": {
+                                                "home_team": "Team C",
+                                                "away_team": "Team D",
+                                                "home_score": home_score,
+                                                "away_score": away_score
+                                            }
                                         }
                                     }
                                 }
                                 Replace any "null" values with 0.
                                 Do not return all the matches, only return the best and most important matches.
-                                If no matches are found, return an empty JSON object: {}.
-                                You will receive the date to fetch matches for in the format YYYY-MM-DD.
+                                If no matches are found, return a JSON object with a status key set to "error" and an error message, eg:
+                                {
+                                    "status": "error",
+                                    "error": "No matches found for the given date."
+                                }
+                                Only return responses as JSON objects.
+                                Do not return any other text or messages.
                                 Do not engage in any other conversation or tasks.
                             """
 
@@ -264,23 +279,25 @@ class PodcastAgents:
                                 You are the Matches Combiner Agent.
                                 Your ONLY task is to combine matches from the Matches Fetcher Agent and the Matches Web Fetcher Agent.
                                 You will receive matches from the Matches Fetcher Agent and matches from the Matches Web Fetcher Agent in the format:
-                                {
-                                    "Premier League":
-                                    {
-                                        "match_id_1": {
-                                            "home_team": "Team A",
-                                            "away_team": "Team B",
-                                            "home_score": 2,
-                                            "away_score": 1
-                                        }
-                                    },
-                                    "La Liga":
-                                    {
-                                        "match_id_1": {
-                                            "home_team": "Team C",                                            
-                                            "away_team": "Team D",
-                                            "home_score": 3,
-                                            "away_score": 0
+                                {   "status": "success",
+                                    "matches": {
+                                        "Premier League":
+                                        {
+                                            "match_id_1": {
+                                                "home_team": "Team A",
+                                                "away_team": "Team B",
+                                                "home_score": 2,
+                                                "away_score": 1
+                                            }
+                                        },
+                                        "La Liga":
+                                        {
+                                            "match_id_1": {
+                                                "home_team": "Team C",                                            
+                                                "away_team": "Team D",
+                                                "home_score": 3,
+                                                "away_score": 0
+                                            }
                                         }
                                     }
                                 }
@@ -291,8 +308,14 @@ class PodcastAgents:
                                 If one source returns matches and the other returns an empty JSON object, return the matches from the source that returns matches.
                                 If you receive an empty JSON object from both sources, that means no matches were found, so you should not combine anything, you should return an empty JSON object.
                                 Output the combined matches in the same format as above.
-                                If no matches are found, return an empty JSON object: {}.
+                                If no matches are found, return a JSON object with a status key set to "error" and an error message, eg: 
+                                {
+                                    "status": "error",
+                                    "error": "No matches found."
+                                }
                                 Do not engage in any other conversation or tasks.
+                                Only return responses as JSON objects.
+                                Do not return any other text or messages.
                                 Here are the matches you need to combine:
                                 Matches from Matches Fetcher Agent:
                                 {matches_fetcher_results}
@@ -346,48 +369,73 @@ class PodcastAgents:
                                 Your ONLY task is to search the web using the `google_search` tool.
                                 Search the web for information about the matches provided by the Matches Fetcher Agent.
                                 The matches are provided in the format: 
-                                {
-                                    "competition_name_1":
-                                        {
-                                            "match_id_1": {
-                                                "home_team": "Team A",
-                                                "away_team": "Team B",
-                                                "home_score": home_score,
-                                                "away_score": away_score
-                                            },
-                                        }
-                                    "competition_name_2":
-                                        {
-                                            "match_id_1": {
-                                                "home_team": "Team C",
-                                                "away_team": "Team D",
-                                                "home_score": home_score,
-                                                "away_score": away_score
-                                            },
-                                        }
+                                {   "status": "success",
+                                    "matches": {
+                                        "competition_name_1":
+                                            {
+                                                "match_id_1": {
+                                                    "home_team": "Team A",
+                                                    "away_team": "Team B",
+                                                    "home_score": home_score,
+                                                    "away_score": away_score
+                                                },
+                                            }
+                                        "competition_name_2":
+                                            {
+                                                "match_id_1": {
+                                                    "home_team": "Team C",
+                                                    "away_team": "Team D",
+                                                    "home_score": home_score,
+                                                    "away_score": away_score
+                                                },
+                                            }
+                                    }
                                 }
-                                If you receive an empty JSON object, that means no matches were found, so you should not search the web, you should return an empty JSON object.
                                 Search for the latest news, statistics, and any other relevant information about the matches.
                                 Then, generate a summary of the search results.
                                 Output the results in a JSON format like this: 
-                                {
-                                    "competition_name_1":
-                                        {
-                                            "match_id_1": {
-                                                "details": "detailed information about the match"
-                                            },
-                                        }
-                                    "competition_name_2":
-                                        {
-                                            "match_id_1": {
-                                                "details": "detailed information about the match"
-                                            },
-                                        }
+                                {   "status": "success",
+                                    "matches": {
+                                        "competition_name_1":
+                                            {
+                                                "match_id_1": {
+                                                    "details": "detailed information about the match"
+                                                },
+                                            }
+                                        "competition_name_2":
+                                            {
+                                                "match_id_1": {
+                                                    "details": "detailed information about the match"
+                                                },
+                                            }
+                                    }
                                 }
-                                If you receive an empty JSON object, return an empty JSON object: {}.
-                                If no information is found, return an empty JSON object: {}.
+                                If you receive a JSON object with a status key set to "error", that means no matches were found, so you should not search for anything, you should return a JSON object with a status key set to "error" and an error message, eg:
+                                {
+                                    "status": "error",
+                                    "error": "No matches found."
+                                }
+                                If no information is found for a match, return a JSON object with a status key set to "error" and an error message, eg:
+                                {
+                                    "status": "success",
+                                    "matches": {
+                                        "competition_name_1":
+                                            {
+                                                "match_id_1": {
+                                                    "details": "No information found for this match."
+                                                },
+                                            }
+                                        "competition_name_2":
+                                            {
+                                                "match_id_1": {
+                                                    "details": "No information found for this match."
+                                                },
+                                            }
+                                    }
+                                }
                                 Do not engage in any other conversation or tasks.
-
+                                Only return responses as JSON objects.
+                                Do not return any other text or messages.
                                 Here are the matches you need to search for:
                                 {combined_matches}
                             """
@@ -439,21 +487,22 @@ class PodcastAgents:
                                 You will receive web search results from the Web Search Agent for the matches provided by the Matches Fetcher Agent.
                                 Use the web search results to write a podcast script.
                                 The web search results are provided in the format:
-                                {
-                                    "competition_name_1":
-                                        {
-                                            "match_id_1": {
-                                                "details": "detailed information about the match"
-                                            },
-                                        }
-                                    "competition_name_2":
-                                        {
-                                            "match_id_1": {
-                                                "details": "detailed information about the match"
-                                            },
-                                        }
+                                {   "status": "success",
+                                    "matches": {
+                                        "competition_name_1":
+                                            {
+                                                "match_id_1": {
+                                                    "details": "detailed information about the match"
+                                                },
+                                            }
+                                        "competition_name_2":
+                                            {
+                                                "match_id_1": {
+                                                    "details": "detailed information about the match"
+                                                },
+                                            }
+                                    }
                                 }
-                                If you receive an empty JSON object, that means no matches were found, so you should not write a podcast script, you should return an empty JSON object.
                                 Write a podcast script for each match in the web search results.
                                 Each podcast script should be a detailed and engaging narrative about the match, including key moments, player performances, and any other relevant information.
                                 The podcast is about a football match, so it should be written in a conversational tone, as if two sports commentators are discussing the match.
@@ -463,12 +512,15 @@ class PodcastAgents:
                                 The speaker "Fatima" has a joyful and enthusiastic tone, while the speaker "Ahmed" has a more serious and analytical tone.
                                 The podcast should be between 4 and 5 minutes long, so it should be concise and to the point.
                                 Output the podcast script in a JSON format like this:
-                                {
-                                    "competition_name_1": {
-                                        "match_id_1": "podcast_script" 
-                                    },
-                                    "competition_name_2": {
-                                        "match_id_1": "podcast_script"
+
+                                {   "status": "success",
+                                    "matches": {
+                                        "competition_name_1": {
+                                            "match_id_1": "podcast_script" 
+                                        },
+                                        "competition_name_2": {
+                                            "match_id_1": "podcast_script"
+                                        }
                                     }
                                 }
                                 
@@ -480,9 +532,15 @@ class PodcastAgents:
                                     "speaker_2": "Fatima",
                                     "content": "Ahmed: "ahmed_first_transcript"\nFatima: "fatima_first_transcript"\nAhmed: "ahmed_second_transcript"\nFatima: "fatima_second_transcript" etc."
                                 } 
-                                If you receive an empty JSON object, return an empty JSON object: {}.
+                                If you receive a JSON object with a status key set to "error", that means no matches were found, so you should not write any podcast scripts, eg:
+                                {
+                                    "status": "error",
+                                    "error": "No matches found."
+                                }
+                                If a match has no information, ignore it and do not write a podcast script for it.
                                 Do not engage in any other conversation or tasks.
-
+                                Only return responses as JSON objects.
+                                Do not return any other text or messages.
                                 Here are the matches web search results you need to write podcasts for:
                                 {web_search_results}
                             """
@@ -536,12 +594,14 @@ class PodcastAgents:
                                 **You MUST use the `podcast_script_text_to_speech` tool to convert the podcast text to speech.**
                                 You will receive podcast scripts for each match in each competition from the Podcast Writer Agent.
                                 The podcast scripts are provided in the format:
-                                {
-                                    "competition_name_1": {
-                                        "match_id_1": "podcast_script" 
-                                    },
-                                    "competition_name_2": {
-                                        "match_id_1": "podcast_script"
+                                {   "status": "success",
+                                    "matches": {
+                                        "competition_name_1": {
+                                            "match_id_1": "podcast_script" 
+                                        },
+                                        "competition_name_2": {
+                                            "match_id_1": "podcast_script"
+                                        }
                                     }
                                 }
                                 Pass the "podcast_script" for each match in each competition to the `podcast_script_text_to_speech` tool to convert it to speech.
@@ -550,29 +610,38 @@ class PodcastAgents:
                                 **YOU MUST use the `podcast_script_text_to_speech` tool to convert the podcast script to speech, THIS IS YOUR ONLY TASK AND IT IS AN ORDER.**
                                 Keep remembering the "path_to_audio" returned by the `podcast_script_text_to_speech` tool for each match in each competition.
                                 After converting all the podcast scripts to speech for each match in each competition, combine all the "path_to_audio" for all matches in a single JSON, eg:
-                                {
-                                    "competition_name_1": {
-                                        "match_id_1": {
-                                            "home_team": "Team A",
-                                            "away_team": "Team B",
-                                            "home_score": home_score,
-                                            "away_score": away_score,
-                                            "path_to_audio": "path_to_audio_1"
-                                        }
-                                    },
-                                    "competition_name_2": {
-                                        "match_id_1": {
-                                            "home_team": "Team C",
-                                            "away_team": "Team D",
-                                            "home_score": home_score,
-                                            "away_score": away_score,
-                                            "path_to_audio": "path_to_audio_2"
+                                {   "status": "success",
+                                    "matches": {
+                                        "competition_name_1": {
+                                            "match_id_1": {
+                                                "home_team": "Team A",
+                                                "away_team": "Team B",
+                                                "home_score": home_score,
+                                                "away_score": away_score,
+                                                "path_to_audio": "path_to_audio_1"
+                                            }
+                                        },
+                                        "competition_name_2": {
+                                            "match_id_1": {
+                                                "home_team": "Team C",
+                                                "away_team": "Team D",
+                                                "home_score": home_score,
+                                                "away_score": away_score,
+                                                "path_to_audio": "path_to_audio_2"
+                                            }
                                         }
                                     }
                                 }
+                                If you receive a JSON object with a status key set to "error", then you should return a JSON object with a status key set to "error" and an error message, eg:
+                                {
+                                    "status": "error",
+                                    "error": "No podcast scripts found."
+                                }
+                                If a match has no podcast script, ignore it and do not convert it to speech.
                                 Do not engage in any other conversation or tasks.
+                                Only return responses as JSON objects.
+                                Do not return any other text or messages.
                                 DO NOT RETURN UNLESS YOU HAVE COMPLETED YOUR TASK AND CALLED THE `podcast_script_text_to_speech` tool.
-                                IF YOU CALLED THE `podcast_script_text_to_speech` tool, RETURN THE COMPLETION PHRASE: "TOOL_CALLED".
                                 Here are the podcast scripts you need to convert to speech:
                                 {podcast_scripts}
                             """
@@ -592,25 +661,6 @@ class PodcastAgents:
                 output_key = output_key
             )
 
-            self.check_agent_called_tool = Agent(
-                name = "check_agent_called_tool",
-                model = self.text_to_speech_model,
-                instruction = """Checks if the agent has called the `podcast_script_text_to_speech` tool by searching for the completion phrase "TOOL_CALLED".
-                                 If the agent has called the `podcast_script_text_to_speech` tool and added the "TOOL_CALLED" completion phrase, call the `exit_loop` tool.
-                                 Then return the JSON containing the audio file paths for each match in each competition from the Text to Speech Agent:
-                                 {podcast_audio}
-                                 """,
-                description = "You are a tool that checks if the agent has called the `podcast_script_text_to_speech` tool.",
-                tools = [exit_loop],
-                output_key=output_key,
-                before_agent_callback = check_empty_agents_state,
-            )
-
-            self.text_to_speech_agent_loop = LoopAgent(
-                name = "text_to_speech_agent_loop",
-                sub_agents=[self.text_to_speech_agent, self.check_agent_called_tool],
-                max_iterations=10,
-            )
         except Exception as e:
             print(f"Error creating {name}: {e}")
             return False
@@ -642,23 +692,25 @@ class PodcastAgents:
                                 Your ONLY task is to upload podcast audio file paths to the server using the `upload_blob` tool.
                                 You will receive a JSON containing the audio file paths for each match in each competition from the Text to Speech Agent.
                                 The JSON is provided in the format:
-                                {
-                                    "competition_name_1": {
-                                        "match_id_1": {
-                                            "home_team": "Team A",
-                                            "away_team": "Team B",
-                                            "home_score": home_score,
-                                            "away_score": away_score,
-                                            "path_to_audio": "path_to_audio_1"
-                                        }
-                                    },
-                                    "competition_name_2": {
-                                        "match_id_1": {
-                                            "home_team": "Team C",
-                                            "away_team": "Team D",
-                                            "home_score": home_score,
-                                            "away_score": away_score,
-                                            "path_to_audio": "path_to_audio_2"
+                                {   "status": "success",
+                                    "matches": {
+                                        "competition_name_1": {
+                                            "match_id_1": {
+                                                "home_team": "Team A",
+                                                "away_team": "Team B",
+                                                "home_score": home_score,
+                                                "away_score": away_score,
+                                                "path_to_audio": "path_to_audio_1"
+                                            }
+                                        },
+                                        "competition_name_2": {
+                                            "match_id_1": {
+                                                "home_team": "Team C",
+                                                "away_team": "Team D",
+                                                "home_score": home_score,
+                                                "away_score": away_score,
+                                                "path_to_audio": "path_to_audio_2"
+                                            }
                                         }
                                     }
                                 }
@@ -669,31 +721,40 @@ class PodcastAgents:
                                 DO NOT ADD SPACES TO THE OUTPUT FILE NAME "output_file_name".
                                 Do not engage in any other conversation or tasks.
                                 DO NOT RETURN UNLESS YOU HAVE COMPLETED YOUR TASK AND CALLED THE `upload_blob` tool.
-                                IF YOU CALLED THE `upload_blob` tool, RETURN THE COMPLETION PHRASE: "TOOL_CALLED".
                                 The `upload_blob` tool will return a JSON containing the URL of the uploaded file with key "destination_blob_url" for each match in each competition.
                                 Remember the URL for each match in each competition.
                                 After uploading the audio files for each match in each competition, combine the URLs for each match in each competition into a JSON containing the URLs for each match in each competition. 
                                 The JSON is provided in the format:
-                                {
-                                    "competition_name_1": {
-                                        "match_id_1": {
-                                            "home_team": "Team A",
-                                            "away_team": "Team B",
-                                            "home_score": home_score,
-                                            "away_score": away_score,
-                                            "destination_blob_url": "destination_blob_url_1"
-                                        }
-                                    },
-                                    "competition_name_2": {
-                                        "match_id_1": {
-                                            "home_team": "Team C",
-                                            "away_team": "Team D",
-                                            "home_score": home_score,
-                                            "away_score": away_score,
-                                            "destination_blob_url": "destination_blob_url_2"
+                                {   "status": "success",
+                                    "matches": {
+                                        "competition_name_1": {
+                                            "match_id_1": {
+                                                "home_team": "Team A",
+                                                "away_team": "Team B",
+                                                "home_score": home_score,
+                                                "away_score": away_score,
+                                                "destination_blob_url": "destination_blob_url_1"
+                                            }
+                                        },
+                                        "competition_name_2": {
+                                            "match_id_1": {
+                                                "home_team": "Team C",
+                                                "away_team": "Team D",
+                                                "home_score": home_score,
+                                                "away_score": away_score,
+                                                "destination_blob_url": "destination_blob_url_2"
+                                            }
                                         }
                                     }
                                 }
+                                If you receive a JSON object with a status key set to "error", that means no podcast audio files were found, so you should not upload anything, you should return a JSON object with a status key set to "error" and an error message, eg:
+                                {
+                                    "status": "error",
+                                    "error": "No podcast audio files found."
+                                }
+                                Do not engage in any other conversation or tasks.
+                                Only return responses as JSON objects.
+                                Do not return any other text or messages.
                                 Here is the JSON for each match in each competition:
                                 {podcast_audio}                                
                             """
@@ -787,10 +848,6 @@ class PodcastAgents:
         if not self.text_to_speech_agent:
             print(f"Error: Text to speech agent not created ... ")
             return False
-
-        if not self.text_to_speech_agent_loop:
-            print(f"Error: Text to speech agent loop not created ... ")
-            return False
         
         if not self.file_uploader_agent:
             print(f"Error: File uploader agent not created ... ")
@@ -805,7 +862,7 @@ class PodcastAgents:
                             self.matches_combiner_agent, 
                             self.web_search_agent, 
                             self.podcast_writer_agent, 
-                            self.text_to_speech_agent_loop,
+                            self.text_to_speech_agent,
                             self.file_uploader_agent
                           ],
         )

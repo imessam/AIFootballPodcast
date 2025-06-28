@@ -161,8 +161,6 @@ def podcast_script_text_to_speech(podcast_script: dict, tool_context: ToolContex
                     Do not take it seriously. It is meant for entertainment purposes only.
                     Enjoy.
                 """
-    disclaimer_speaker = speaker_1
-
     prompt = f"""
             You have to convert a podcast script text to speech between two speakers.
             But first, you have to say a disclaimer first.
