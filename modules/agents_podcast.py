@@ -223,7 +223,10 @@ class PodcastAgents:
                                     }
                                 }
                                 Replace any "null" values with 0.
-                                Do not return all the matches, only return the best and most important matches.
+                                DO NOT RETURN MATCHES that are not important or not popular.
+                                DO NOT RETURN ALL THE MATCHES.
+                                DO NOT RETURN MORE THAN 5 MATCHES.
+                                IF YOU FOUND MORE THAN 5 MATCHES, RETURN ONLY THE BEST 5 MATCHES.
                                 If no matches are found, return a JSON object with a status key set to "error" and an error message, eg:
                                 {
                                     "status": "error",
@@ -306,6 +309,7 @@ class PodcastAgents:
                                 Do not duplicate any matches.
                                 If you found the same match in both sources, take the match from the source that returned it first.
                                 If one source returns matches and the other returns an empty JSON object, return the matches from the source that returns matches.
+                                If you receive more than 2 matches from both sources, only return the top 2 matches from both sources.
                                 If you receive an empty JSON object from both sources, that means no matches were found, so you should not combine anything, you should return an empty JSON object.
                                 Output the combined matches in the same format as above.
                                 If no matches are found, return a JSON object with a status key set to "error" and an error message, eg: 
