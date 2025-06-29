@@ -40,24 +40,39 @@ class PodcastAgents:
                     text_to_speech_model : str = MODEL_GEMINI_2_0_PRO,
                     files_uploader_model : str = MODEL_GEMINI_2_5_FLASH) -> None:
         
+
+        # --- Models ---
         self.matches_fetcher_model = matches_fetcher_model
         self.matches_web_fetcher_model = matches_web_fetcher_model
         self.matches_combiner_model = matches_fetcher_model
+
         self.web_search_model = web_search_model
+
         self.podcast_writer_model = podcast_writer_model
+        self.podcast_dialogue_writer_model = podcast_writer_model
+
         self.text_to_speech_model = text_to_speech_model
+        self.text_to_speech_dialogue_model = text_to_speech_model
         self.files_uploader_model = files_uploader_model
 
+        # --- Agents ---
         self.matches_fetcher_agent = None
         self.matches_web_fetcher_agent = None
         self.matches_parallel_agents = None
         self.matches_combiner_agent = None
+
         self.web_search_agent = None
+
         self.podcast_writer_agent = None
+        self.podcast_dialogue_writer_agent = None
+
         self.text_to_speech_agent = None
+        self.text_to_speech_dialogue_agent = None
         self.files_uploader_agent = None
+
         self.sequential_agent = None
 
+        # --- Session ---
         self.app_name = "football_podcast_app"
         self.user_id = "user_1"
         self.session_id = "session_001"
@@ -193,7 +208,7 @@ class PodcastAgents:
         default_instruction = """
                                 You are the Match Web Fetcher Agent.
                                 Your ONLY task is to fetch matches from the web using the `google_search` tool.
-                                You search only if the user asked to search for matches for a given date.
+                                You search only if the user asked to search for matches for a given date, or if he ask for specific matches or competitions.
                                 The date might be provided in the format YYYY-MM-DD, or like "Today", "Tomorrow", "Yesterday".
                                 Search only for popular football competitions and matches.
                                 Do not search for friendly competitions or matches.
@@ -468,10 +483,10 @@ class PodcastAgents:
 
         return True
     
-    def _create_podcast_writer_agent(self, custom_instruction : str) -> bool:
+    def _create_podcast_dialogue_writer_agent(self, custom_instruction : str) -> bool:
 
         """
-        Creates the Podcast Writer Agent.
+        Creates the Podcast Dialogue Writer Agent.
 
         Args:
             custom_instruction (str): A custom instruction for the agent.
@@ -481,7 +496,7 @@ class PodcastAgents:
 
         """
 
-        name = "podcast_writer_agent"
+        name = "podcast_dialogue_writer_agent"
         description = "Writes podcasts."
         tools = []
         output_key = "podcast_scripts"
@@ -555,6 +570,108 @@ class PodcastAgents:
         print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
 
         try:
+            self.podcast_dialogue_writer_agent = Agent(
+                name = name,
+                model = self.podcast_dialogue_writer_model,
+                description = description,
+                instruction = instruction,
+                tools = tools,
+                before_agent_callback = check_empty_agents_state,
+                before_tool_callback = None,
+                output_key = output_key,
+            )
+        except Exception as e:
+            print(f"Error creating {name}: {e}")
+            return False
+        
+        print(f"{name} created successfully.")
+
+        return True
+    
+    def _create_podcast_writer_agent(self, custom_instruction : str) -> bool:
+
+        """
+        Creates the Podcast Writer Agent.
+
+        Args:
+            custom_instruction (str): A custom instruction for the agent.
+
+        Returns:
+            bool: True if the agent is created successfully, False otherwise.
+
+        """
+
+        name = "podcast_writer_agent"
+        description = "Writes podcasts."
+        tools = []
+        output_key = "podcast_scripts"
+
+        default_instruction = """
+                                You are the Podcast Writer Agent.
+                                Your ONLY task is to write podcasts.
+                                You will receive web search results from the Web Search Agent for the matches provided by the Matches Fetcher Agent.
+                                Use the web search results to write a podcast script.
+                                The web search results are provided in the format:
+                                {   "status": "success",
+                                    "matches": {
+                                        "competition_name_1":
+                                            {
+                                                "match_id_1": {
+                                                    "details": "detailed information about the match"
+                                                },
+                                            }
+                                        "competition_name_2":
+                                            {
+                                                "match_id_1": {
+                                                    "details": "detailed information about the match"
+                                                },
+                                            }
+                                    }
+                                }
+                                Write a podcast script for each match in the web search results.
+                                Each podcast script should be a detailed and engaging narrative about the match, including key moments, player performances, and any other relevant information.
+                                The podcast is about a football match, so it should be written in a football-specific tone.
+                                There is one speaker in the podcast, called "Ahmed".
+                                The speaker should discuss analysis and insights about the match.
+                                The podcast should be between 4 and 5 minutes long, so it should be concise and to the point.
+                                Output the podcast script in a JSON format like this:
+
+                                {   "status": "success",
+                                    "matches": {
+                                        "competition_name_1": {
+                                            "match_id_1": "podcast_script" 
+                                        },
+                                        "competition_name_2": {
+                                            "match_id_1": "podcast_script"
+                                        }
+                                    }
+                                }
+                                
+                                The "podcast_script" should be another JSON object with the keys "speaker_name", and "content".
+                                The "speaker_name" should be the name of the speaker, "Ahmed".
+                                The "content" should be the actual podcast script, which should be a string containing the podcast script, eg:
+                                {
+                                    "speaker_name": "Ahmed",
+                                    "content": "podcast_transcript"
+                                }
+                                If you receive a JSON object with a status key set to "error", that means no matches were found, so you should not write any podcast scripts, eg:
+                                {
+                                    "status": "error",
+                                    "error": "No matches found."
+                                }
+                                If a match has no information, ignore it and do not write a podcast script for it.
+                                Do not engage in any other conversation or tasks.
+                                Only return responses as JSON objects.
+                                Do not return any other text or messages.
+                                Here are the matches web search results you need to write podcasts for:
+                                {web_search_results}
+                            """
+
+        instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
+
+        print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
+
+        try:
             self.podcast_writer_agent = Agent(
                 name = name,
                 model = self.podcast_writer_model,
@@ -574,6 +691,104 @@ class PodcastAgents:
         return True
     
     
+    def _create_text_to_speech_dialogue_agent(self, custom_instruction : str) -> bool:
+
+        """
+        Creates the Text to Speech Agent.
+
+        Args:
+            custom_instruction (str): A custom instruction for the agent.
+
+        Returns:
+            bool: True if the agent is created successfully, False otherwise.
+        """
+        
+        name = "text_to_speech_dialogue_agent"
+        description = "Converts podcast scripts to speech."
+        tools = [podcast_script_text_to_speech_dialogue]
+        output_key = "podcast_audio"
+
+        default_instruction = """
+                                You are the Text to Speech Agent.
+                                Your ONLY task is to convert podcasts scripts text to speech using the `podcast_script_text_to_speech_dialogue` tool.
+                                **You MUST use the `podcast_script_text_to_speech_dialogue` tool to convert the podcast text to speech.**
+                                You will receive podcast scripts for each match in each competition from the Podcast Writer Agent.
+                                The podcast scripts are provided in the format:
+                                {   "status": "success",
+                                    "matches": {
+                                        "competition_name_1": {
+                                            "match_id_1": "podcast_script" 
+                                        },
+                                        "competition_name_2": {
+                                            "match_id_1": "podcast_script"
+                                        }
+                                    }
+                                }
+                                Pass the "podcast_script" for each match in each competition to the `podcast_script_text_to_speech_dialogue` tool to convert it to speech.
+                                The `podcast_script_text_to_speech_dialogue` tool will return a string containing the path to the audio file "path_to_audio".
+                                DO NOT write any text, you only need to pass the "podcast_script" for each match in each competition to the `podcast_script_text_to_speech_dialogue` tool.
+                                **YOU MUST use the `podcast_script_text_to_speech_dialogue` tool to convert the podcast script to speech, THIS IS YOUR ONLY TASK AND IT IS AN ORDER.**
+                                Keep remembering the "path_to_audio" returned by the `podcast_script_text_to_speech_dialogue` tool for each match in each competition.
+                                After converting all the podcast scripts to speech for each match in each competition, combine all the "path_to_audio" for all matches in a single JSON, eg:
+                                {   "status": "success",
+                                    "matches": {
+                                        "competition_name_1": {
+                                            "match_id_1": {
+                                                "home_team": "Team A",
+                                                "away_team": "Team B",
+                                                "home_score": home_score,
+                                                "away_score": away_score,
+                                                "path_to_audio": "path_to_audio_1"
+                                            }
+                                        },
+                                        "competition_name_2": {
+                                            "match_id_1": {
+                                                "home_team": "Team C",
+                                                "away_team": "Team D",
+                                                "home_score": home_score,
+                                                "away_score": away_score,
+                                                "path_to_audio": "path_to_audio_2"
+                                            }
+                                        }
+                                    }
+                                }
+                                If you receive a JSON object with a status key set to "error", then you should return a JSON object with a status key set to "error" and an error message, eg:
+                                {
+                                    "status": "error",
+                                    "error": "No podcast scripts found."
+                                }
+                                If a match has no podcast script, ignore it and do not convert it to speech.
+                                Do not engage in any other conversation or tasks.
+                                Only return responses as JSON objects.
+                                Do not return any other text or messages.
+                                DO NOT RETURN UNLESS YOU HAVE COMPLETED YOUR TASK AND CALLED THE `podcast_script_text_to_speech_dialogue` tool.
+                                Here are the podcast scripts you need to convert to speech:
+                                {podcast_scripts}
+                            """
+
+        instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
+
+        print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
+
+        try:
+            self.text_to_speech_dialogue_agent = Agent(
+                name = name,
+                model = self.text_to_speech_dialogue_model,
+                description = description,
+                instruction = instruction,
+                tools = [podcast_script_text_to_speech_dialogue],
+                before_agent_callback = check_empty_agents_state,
+                output_key = output_key
+            )
+
+        except Exception as e:
+            print(f"Error creating {name}: {e}")
+            return False
+        
+        print(f"{name} created successfully.")
+
+        return True
+    
     def _create_text_to_speech_agent(self, custom_instruction : str) -> bool:
 
         """
@@ -590,8 +805,6 @@ class PodcastAgents:
         description = "Converts podcast scripts to speech."
         tools = [podcast_script_text_to_speech]
         output_key = "podcast_audio"
-        COMPLETION_PHRASE = "TOOL_CALLED"
-
 
         default_instruction = """
                                 You are the Text to Speech Agent.
@@ -814,8 +1027,10 @@ class PodcastAgents:
         self._create_web_search_agent(web_search_instruction)
 
         self._create_podcast_writer_agent(podcast_writer_instruction)
+        self._create_podcast_dialogue_writer_agent(podcast_writer_instruction)
 
         self._create_text_to_speech_agent(text_to_speech_instruction)
+        self._create_text_to_speech_dialogue_agent(text_to_speech_instruction)
 
         self._create_file_uploader_agent(file_uploader_instruction)
 
@@ -850,8 +1065,16 @@ class PodcastAgents:
             print(f"Error: Podcast writer agent not created ... ")
             return False
 
+        if not self.podcast_dialogue_writer_agent:
+            print(f"Error: Podcast dialogue writer agent not created ... ")
+            return False
+
         if not self.text_to_speech_agent:
             print(f"Error: Text to speech agent not created ... ")
+            return False
+        
+        if not self.text_to_speech_dialogue_agent:
+            print(f"Error: Text to speech dialogue agent not created ... ")
             return False
         
         if not self.file_uploader_agent:
@@ -866,8 +1089,8 @@ class PodcastAgents:
                             self.matches_parallel_agents,
                             self.matches_combiner_agent, 
                             self.web_search_agent, 
-                            self.podcast_writer_agent, 
-                            self.text_to_speech_agent,
+                            self.podcast_dialogue_writer_agent, 
+                            self.text_to_speech_dialogue_agent,
                             self.file_uploader_agent
                           ],
         )

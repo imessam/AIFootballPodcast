@@ -129,10 +129,10 @@ def get_matches_by_date(date_str: str , tool_context: ToolContext) -> dict:
     return result
 
 
-def podcast_script_text_to_speech(podcast_script: dict, tool_context: ToolContext) -> str:
+def podcast_script_text_to_speech_dialogue(podcast_script: dict, tool_context: ToolContext) -> str:
 
     """
-        Converts a podcast script text to speech.
+        Converts a podcast dialogue script text to speech.
 
         Args:
             podcast_script (dict): A dictionary containing the script of the podcast to be converted to speech, with keys "speaker_1", "speaker_2", and "content", eg:
@@ -150,7 +150,7 @@ def podcast_script_text_to_speech(podcast_script: dict, tool_context: ToolContex
     if tool_context is not None:
         agent_name = tool_context.agent_name
 
-    tool_name = "podcast_text_to_speech"
+    tool_name = "podcast_script_text_to_speech_dialogue"
 
     print(f"--- Tool : {tool_name} called by agent: {agent_name} ---")
 
@@ -233,9 +233,86 @@ def podcast_script_text_to_speech(podcast_script: dict, tool_context: ToolContex
     print(f"--- Tool : {tool_name} Audio file saved as: {file_name} ---")
 
     return file_name  # Return the name of the saved audio file
+	
+
+def podcast_script_text_to_speech(podcast_script: dict, tool_context: ToolContext) -> str:
+
+    """
+        Converts a podcast script text to speech.
+
+        Args:
+            podcast_script (dict): A dictionary containing the script of the podcast to be converted to speech, with keys "speaker_name", and "content", eg:
+            {
+                "speaker_1": "Ahmed",
+                "content": "podcast_transcript"
+            } 
+        Returns:
+            str: The path of the saved audio file containing the generated speech.
+    """ 
+
+    agent_name = ""
+
+    if tool_context is not None:
+        agent_name = tool_context.agent_name
+
+    tool_name = "podcast_text_to_speech"
+
+    print(f"--- Tool : {tool_name} called by agent: {agent_name} ---")
 
 
-def podcast_script_text_to_speech_elevenlabs(podcast_script: dict, tool_context: ToolContext) -> str:
+    ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+    
+    elevenlabs = ElevenLabs(
+        api_key=ELEVENLABS_API_KEY,
+    )
+
+    speaker_name = podcast_script.get("speaker_name", "Joe")
+
+    content = podcast_script.get("content", "")
+
+    disclaimer = """
+                    Disclaimer: The following podcast script is a fictional script.
+                    The whole script is AI generated and does not represent any real content.
+                    Do not take it seriously. It is meant for entertainment purposes only.
+                    Enjoy.
+                """
+
+    prompt = f"""
+            {disclaimer}.
+            {content}
+           """
+    
+    print(f"--- Tool : {tool_name} Generating audio for prompt: {prompt} ---")
+
+
+    response = elevenlabs.text_to_speech.convert(
+        text=prompt,
+        output_format="pcm_24000",
+        model_id="eleven_flash_v2_5",
+        voice_id="JBFqnCBsd6RMkjVDRZzb"
+    )
+
+    out_dir = "output"
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    file_name= f"{out_dir}/out.wav"
+    if tool_context is not None:
+        file_name = f"{out_dir}/{tool_context.agent_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
+
+    data : bytes = b""
+    for chunk in response:
+        if chunk:
+            data += chunk
+
+    wave_file(file_name, data) # Saves the file to current directory
+
+    print(f"--- Tool : {tool_name} Audio file saved as: {file_name} ---")
+    
+    return file_name  # Return the name of the saved audio file
+
+
+def podcast_script_text_to_speech_dialogue_elevenlabs(podcast_script: dict, tool_context: ToolContext) -> str:
 
 
     agent_name = ""
