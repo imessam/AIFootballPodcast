@@ -25,6 +25,7 @@ print(f"FOOTBALL_DATA_API Key set: {'Yes' if os.environ.get('FOOTBALL_DATA_API_K
 print(f"Google API Key set: {'Yes' if os.environ.get('GOOGLE_API_KEY') and os.environ['GOOGLE_API_KEY'] != 'YOUR_GOOGLE_API_KEY' else 'No (REPLACE PLACEHOLDER!)'}")
 
 MODEL_GEMINI_2_5_FLASH_PREVIEW_TTS = "gemini-2.5-flash-preview-tts"
+MODEL_GEMINI_2_5_PRO_TTS = "gemini-2.5-pro-preview-tts"
 
 def get_matches_by_date(date_str: str , tool_context: ToolContext) -> dict:
 
