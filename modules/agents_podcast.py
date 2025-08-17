@@ -113,14 +113,14 @@ class PodcastAgents:
                                             "home_team": "Team A",
                                             "away_team": "Team B",
                                             "home_score": 2,
-                                            "away_score": 1
+                                            "away_score": 1,
                                         },
                                         "match_id_2": {
                                             "competition": "La Liga",
                                             "home_team": "Team C",
                                             "away_team": "Team D",
                                             "home_score": 3,
-                                            "away_score": 0
+                                            "away_score": 0,
                                         }
                                     }
                                 }
@@ -140,7 +140,8 @@ class PodcastAgents:
                                                 "home_team": "Team A",
                                                 "away_team": "Team B",
                                                 "home_score": 2,
-                                                "away_score": 1
+                                                "away_score": 1,
+                                                "state": "In Progress"
                                             }
                                         },
                                         "La Liga":
@@ -149,7 +150,8 @@ class PodcastAgents:
                                                 "home_team": "Team C",
                                                 "away_team": "Team D",
                                                 "home_score": 3,
-                                                "away_score": 0
+                                                "away_score": 0,
+                                                "state": "Full Time"
                                             }
                                         }
                                     }
@@ -167,7 +169,7 @@ class PodcastAgents:
 
         instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
 
-        print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
+        # print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
 
         try:
             self.matches_fetcher_agent = Agent(
@@ -210,10 +212,6 @@ class PodcastAgents:
                                 Your ONLY task is to fetch matches from the web using the `google_search` tool.
                                 You search only if the user asked to search for matches for a given date, or if he ask for specific matches or competitions.
                                 The date might be provided in the format YYYY-MM-DD, or like "Today", "Tomorrow", "Yesterday".
-                                Search only for popular football competitions and matches.
-                                Do not search for friendly competitions or matches.
-                                DO NOT RETURN MATCHES that are not important or not popular.
-                                DO NOT RETURN ALL THE MATCHES.
                                 DO NOT RETURN MORE THAN 5 MATCHES.
                                 In case of matches are found, group the matches in the same competition. Return the matches in this exact format:
                                 {   "status": "success",
@@ -224,7 +222,8 @@ class PodcastAgents:
                                                 "home_team": "Team A",
                                                 "away_team": "Team B",
                                                 "home_score": home_score,
-                                                "away_score": away_score
+                                                "away_score": away_score,
+                                                "state": "In Progress"
                                             }
                                         },
                                         "La Liga":
@@ -233,14 +232,24 @@ class PodcastAgents:
                                                 "home_team": "Team C",
                                                 "away_team": "Team D",
                                                 "home_score": home_score,
-                                                "away_score": away_score
+                                                "away_score": away_score,
+                                                "state": "Full Time"
+                                            }
+                                        }
+                                        "Serie A":
+                                        {
+                                            "match_id_1": {
+                                                "home_team": "Team E",
+                                                "away_team": "Team F",
+                                                "home_score": home_score,
+                                                "away_score": away_score,
+                                                "state": "Upcoming"
                                             }
                                         }
                                     }
                                 }
-                                Replace any "null" values with 0.
-                                DO NOT RETURN MATCHES that are not important or not popular.
-                                DO NOT RETURN ALL THE MATCHES.
+                                Replace any "null" values with -1.
+                                The "state" key indicates the state of the match. It can be "Upcoming", "In Progress", or "Full Time".
                                 DO NOT RETURN MORE THAN 5 MATCHES.
                                 IF YOU FOUND MORE THAN 5 MATCHES, RETURN ONLY THE BEST 5 MATCHES.
                                 If no matches are found, return a JSON object with a status key set to "error" and an error message, eg:
@@ -255,7 +264,7 @@ class PodcastAgents:
 
         instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
 
-        print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
+        # print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
 
         try:
             self.matches_web_fetcher_agent = Agent(
@@ -294,6 +303,7 @@ class PodcastAgents:
         tools = []
         output_key = "combined_matches"
 
+
         default_instruction = """
                                 You are the Matches Combiner Agent.
                                 Your ONLY task is to combine matches from the Matches Fetcher Agent and the Matches Web Fetcher Agent.
@@ -306,7 +316,8 @@ class PodcastAgents:
                                                 "home_team": "Team A",
                                                 "away_team": "Team B",
                                                 "home_score": 2,
-                                                "away_score": 1
+                                                "away_score": 1,
+                                                "state": "In Progress"
                                             }
                                         },
                                         "La Liga":
@@ -315,13 +326,41 @@ class PodcastAgents:
                                                 "home_team": "Team C",                                            
                                                 "away_team": "Team D",
                                                 "home_score": 3,
-                                                "away_score": 0
+                                                "away_score": 0,
+                                                "state": "Full Time"
+                                            }
+                                        }
+                                        "Serie A":
+                                        {
+                                            "match_id_1": {
+                                                "home_team": "Team E",
+                                                "away_team": "Team F",
+                                                "home_score": 1,
+                                                "away_score": 0,
+                                                "state": "Upcoming"
                                             }
                                         }
                                     }
                                 }
 
                                 Combine the matches from both sources into a single dictionary.
+                                You will receive a dictionary with the order of the competitions, with key is the name of the competition and the value is the order of the competition, eg:
+                                {
+                                    "competition_a": 1,
+                                    "competition_b": 2,
+                                    "competition_c": 3
+                                }
+                                Here is the order of the competitions:
+                                {
+                                    "Premier League": 1,
+                                    "La Liga": 2,
+                                    "Serie A": 3,
+                                    "Bundesliga": 4,
+                                    "Ligue 1": 5,
+                                    "Fifa Club World Cup": 6,
+                                    "Fifa World Cup": 7,
+                                    "other_competitions": 8
+                                }
                                 Do not duplicate any matches.
                                 If you found the same match in both sources, take the match from the source that returned it first.
                                 If one source returns matches and the other returns an empty JSON object, return the matches from the source that returns matches.
@@ -344,7 +383,7 @@ class PodcastAgents:
                             """
         instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
 
-        print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
+        # print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
 
         try:
             self.matches_combiner_agent = Agent(
@@ -397,7 +436,8 @@ class PodcastAgents:
                                                     "home_team": "Team A",
                                                     "away_team": "Team B",
                                                     "home_score": home_score,
-                                                    "away_score": away_score
+                                                    "away_score": away_score,
+                                                    "state": "match_state"
                                                 },
                                             }
                                         "competition_name_2":
@@ -406,7 +446,8 @@ class PodcastAgents:
                                                     "home_team": "Team C",
                                                     "away_team": "Team D",
                                                     "home_score": home_score,
-                                                    "away_score": away_score
+                                                    "away_score": away_score,
+                                                    "state": "match_state"
                                                 },
                                             }
                                     }
@@ -462,7 +503,7 @@ class PodcastAgents:
 
         instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
 
-        print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
+        # print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
 
         try:
             self.web_search_agent = Agent(
@@ -567,7 +608,7 @@ class PodcastAgents:
 
         instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
 
-        print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
+        # print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
 
         try:
             self.podcast_dialogue_writer_agent = Agent(
@@ -669,7 +710,7 @@ class PodcastAgents:
 
         instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
 
-        print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
+        # print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
 
         try:
             self.podcast_writer_agent = Agent(
@@ -738,6 +779,7 @@ class PodcastAgents:
                                                 "away_team": "Team B",
                                                 "home_score": home_score,
                                                 "away_score": away_score,
+                                                "state": "match_state",
                                                 "path_to_audio": "path_to_audio_1"
                                             }
                                         },
@@ -747,11 +789,13 @@ class PodcastAgents:
                                                 "away_team": "Team D",
                                                 "home_score": home_score,
                                                 "away_score": away_score,
+                                                "state": "match_state",
                                                 "path_to_audio": "path_to_audio_2"
                                             }
                                         }
                                     }
                                 }
+                                The "state" key in each match indicates if the match has been finished, in progress or not started, the values must be one of "Full Time", "In Progress" or "Upcoming".
                                 If you receive a JSON object with a status key set to "error", then you should return a JSON object with a status key set to "error" and an error message, eg:
                                 {
                                     "status": "error",
@@ -768,7 +812,7 @@ class PodcastAgents:
 
         instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
 
-        print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
+        # print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
 
         try:
             self.text_to_speech_dialogue_agent = Agent(
@@ -836,6 +880,7 @@ class PodcastAgents:
                                                 "away_team": "Team B",
                                                 "home_score": home_score,
                                                 "away_score": away_score,
+                                                "state": "match_state",
                                                 "path_to_audio": "path_to_audio_1"
                                             }
                                         },
@@ -845,11 +890,13 @@ class PodcastAgents:
                                                 "away_team": "Team D",
                                                 "home_score": home_score,
                                                 "away_score": away_score,
+                                                "state": "match_state",
                                                 "path_to_audio": "path_to_audio_2"
                                             }
                                         }
                                     }
                                 }
+                                The "state" key in each match indicates if the match has been finished, in progress or not started, the values must be one of "Full Time", "In Progress" or "Upcoming". 
                                 If you receive a JSON object with a status key set to "error", then you should return a JSON object with a status key set to "error" and an error message, eg:
                                 {
                                     "status": "error",
@@ -866,7 +913,7 @@ class PodcastAgents:
 
         instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
 
-        print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
+        # print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
 
         try:
             self.text_to_speech_agent = Agent(
@@ -918,6 +965,7 @@ class PodcastAgents:
                                                 "away_team": "Team B",
                                                 "home_score": home_score,
                                                 "away_score": away_score,
+                                                "state": "match_state",
                                                 "path_to_audio": "path_to_audio_1"
                                             }
                                         },
@@ -927,6 +975,7 @@ class PodcastAgents:
                                                 "away_team": "Team D",
                                                 "home_score": home_score,
                                                 "away_score": away_score,
+                                                "state": "match_state",
                                                 "path_to_audio": "path_to_audio_2"
                                             }
                                         }
@@ -951,6 +1000,7 @@ class PodcastAgents:
                                                 "away_team": "Team B",
                                                 "home_score": home_score,
                                                 "away_score": away_score,
+                                                "state": "match_state",
                                                 "destination_blob_url": "destination_blob_url_1"
                                             }
                                         },
@@ -960,6 +1010,7 @@ class PodcastAgents:
                                                 "away_team": "Team D",
                                                 "home_score": home_score,
                                                 "away_score": away_score,
+                                                "state": "match_state",
                                                 "destination_blob_url": "destination_blob_url_2"
                                             }
                                         }
@@ -979,7 +1030,7 @@ class PodcastAgents:
 
         instruction = custom_instruction if len(custom_instruction) > 0 else default_instruction
 
-        print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
+        # print(f"Creating {name} with description: {description}, instruction: {instruction}, and tools: {tools}")
 
         try:
             self.file_uploader_agent = Agent(
