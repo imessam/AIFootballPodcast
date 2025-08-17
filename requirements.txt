@@ -4,3 +4,4 @@ python-dotenv
 google-ai-generativelanguage
 google-cloud-aiplatform[agent_engines,adk]
 google-cloud-aiplatform[agent_engines,adk,langchain,ag2,llama_index]
+elevenlabs

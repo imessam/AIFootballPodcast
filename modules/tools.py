@@ -15,6 +15,9 @@ from google import genai
 from google.genai import types
 from google.cloud import storage
 
+from elevenlabs import VoiceSettings
+from elevenlabs.client import ElevenLabs
+from elevenlabs import DialogueInput
 
 from modules.utils import wave_file
 
@@ -23,8 +26,11 @@ load_dotenv()
 
 print(f"FOOTBALL_DATA_API Key set: {'Yes' if os.environ.get('FOOTBALL_DATA_API_KEY') and os.environ['FOOTBALL_DATA_API_KEY'] != 'FOOTBALL_DATA_API_KEY' else 'No (REPLACE PLACEHOLDER!)'}")
 print(f"Google API Key set: {'Yes' if os.environ.get('GOOGLE_API_KEY') and os.environ['GOOGLE_API_KEY'] != 'YOUR_GOOGLE_API_KEY' else 'No (REPLACE PLACEHOLDER!)'}")
+print(f"ELEVENLABS_API_KEY set: {'Yes' if os.environ.get('ELEVENLABS_API_KEY') and os.environ['ELEVENLABS_API_KEY'] != 'ELEVENLABS_API_KEY' else 'No (REPLACE PLACEHOLDER!)'}")
+
 
 MODEL_GEMINI_2_5_FLASH_PREVIEW_TTS = "gemini-2.5-flash-preview-tts"
+MODEL_GEMINI_2_5_PRO_TTS = "gemini-2.5-pro-preview-tts"
 
 def get_matches_by_date(date_str: str , tool_context: ToolContext) -> dict:
 
@@ -123,10 +129,10 @@ def get_matches_by_date(date_str: str , tool_context: ToolContext) -> dict:
     return result
 
 
-def podcast_script_text_to_speech(podcast_script: dict, tool_context: ToolContext) -> str:
+def podcast_script_text_to_speech_dialogue(podcast_script: dict, tool_context: ToolContext) -> str:
 
     """
-        Converts a podcast script text to speech.
+        Converts a podcast dialogue script text to speech.
 
         Args:
             podcast_script (dict): A dictionary containing the script of the podcast to be converted to speech, with keys "speaker_1", "speaker_2", and "content", eg:
@@ -144,7 +150,7 @@ def podcast_script_text_to_speech(podcast_script: dict, tool_context: ToolContex
     if tool_context is not None:
         agent_name = tool_context.agent_name
 
-    tool_name = "podcast_text_to_speech"
+    tool_name = "podcast_script_text_to_speech_dialogue"
 
     print(f"--- Tool : {tool_name} called by agent: {agent_name} ---")
 
@@ -161,8 +167,6 @@ def podcast_script_text_to_speech(podcast_script: dict, tool_context: ToolContex
                     Do not take it seriously. It is meant for entertainment purposes only.
                     Enjoy.
                 """
-    disclaimer_speaker = speaker_1
-
     prompt = f"""
             You have to convert a podcast script text to speech between two speakers.
             But first, you have to say a disclaimer first.
@@ -229,6 +233,165 @@ def podcast_script_text_to_speech(podcast_script: dict, tool_context: ToolContex
     print(f"--- Tool : {tool_name} Audio file saved as: {file_name} ---")
 
     return file_name  # Return the name of the saved audio file
+	
+
+def podcast_script_text_to_speech(podcast_script: dict, tool_context: ToolContext) -> str:
+
+    """
+        Converts a podcast script text to speech.
+
+        Args:
+            podcast_script (dict): A dictionary containing the script of the podcast to be converted to speech, with keys "speaker_name", and "content", eg:
+            {
+                "speaker_1": "Ahmed",
+                "content": "podcast_transcript"
+            } 
+        Returns:
+            str: The path of the saved audio file containing the generated speech.
+    """ 
+
+    agent_name = ""
+
+    if tool_context is not None:
+        agent_name = tool_context.agent_name
+
+    tool_name = "podcast_text_to_speech"
+
+    print(f"--- Tool : {tool_name} called by agent: {agent_name} ---")
+
+
+    ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+    
+    elevenlabs = ElevenLabs(
+        api_key=ELEVENLABS_API_KEY,
+    )
+
+    speaker_name = podcast_script.get("speaker_name", "Joe")
+
+    content = podcast_script.get("content", "")
+
+    disclaimer = """
+                    Disclaimer: The following podcast script is a fictional script.
+                    The whole script is AI generated and does not represent any real content.
+                    Do not take it seriously. It is meant for entertainment purposes only.
+                    Enjoy.
+                """
+
+    prompt = f"""
+            {disclaimer}.
+            {content}
+           """
+    
+    print(f"--- Tool : {tool_name} Generating audio for prompt: {prompt} ---")
+
+
+    response = elevenlabs.text_to_speech.convert(
+        text=prompt,
+        output_format="pcm_24000",
+        model_id="eleven_flash_v2_5",
+        voice_id="JBFqnCBsd6RMkjVDRZzb"
+    )
+
+    out_dir = "output"
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    file_name= f"{out_dir}/out.wav"
+    if tool_context is not None:
+        file_name = f"{out_dir}/{tool_context.agent_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
+
+    data : bytes = b""
+    for chunk in response:
+        if chunk:
+            data += chunk
+
+    wave_file(file_name, data) # Saves the file to current directory
+
+    print(f"--- Tool : {tool_name} Audio file saved as: {file_name} ---")
+    
+    return file_name  # Return the name of the saved audio file
+
+
+def podcast_script_text_to_speech_dialogue_elevenlabs(podcast_script: dict, tool_context: ToolContext) -> str:
+
+
+    agent_name = ""
+
+    if tool_context is not None:
+        agent_name = tool_context.agent_name
+
+    tool_name = "podcast_text_to_speech_elevenlabs"
+
+    print(f"--- Tool : {tool_name} called by agent: {agent_name} ---")
+
+
+    ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+    
+    elevenlabs = ElevenLabs(
+        api_key=ELEVENLABS_API_KEY,
+    )
+
+    speaker_1 = podcast_script.get("speaker_1", "Joe")
+    speaker_2 = podcast_script.get("speaker_2", "Jane")
+
+    content = podcast_script.get("content", "")
+
+    disclaimer = """
+                    Disclaimer: The following conversation is a fictional conversation between two speakers.
+                    The whole script is AI generated and does not represent any real conversation.
+                    Do not take it seriously. It is meant for entertainment purposes only.
+                    Enjoy.
+                """
+
+    prompt_to_dialogue = []
+
+    disclaimer = DialogueInput(
+        text=disclaimer,
+        voice_id="JBFqnCBsd6RMkjVDRZzb",
+    )
+
+    prompt_to_dialogue.append(disclaimer)
+
+    for line in content.split("\n"):
+
+        speaker_name = line.split(":")[0].strip()
+        text = line.split(":")[1].strip()
+
+        prompt_to_dialogue.append(
+            DialogueInput(
+                text=text,
+                voice_id="JBFqnCBsd6RMkjVDRZzb" if speaker_name == speaker_1 else "Aw4FAjKCGjjNkVhN1Xmq",
+            )
+        )
+    
+    print(f"--- Tool : {tool_name} Generating audio for prompt: {prompt_to_dialogue} ---")
+
+
+    response = elevenlabs.text_to_dialogue.convert(
+        inputs=prompt_to_dialogue,
+        output_format="pcm_24000"
+    )
+
+    out_dir = "output"
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    file_name= f"{out_dir}/out.wav"
+    if tool_context is not None:
+        file_name = f"{out_dir}/{tool_context.agent_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
+
+    data : bytes = b""
+    for chunk in response:
+        if chunk:
+            data += chunk
+
+    wave_file(file_name, data) # Saves the file to current directory
+
+    print(f"--- Tool : {tool_name} Audio file saved as: {file_name} ---")
+    
+    return file_name  # Return the name of the saved audio file
+
+
 
 def exit_loop(tool_context: ToolContext) -> Optional[dict]:
 

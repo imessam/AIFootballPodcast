@@ -1,9 +1,9 @@
 from google.adk.agents.callback_context import CallbackContext
-from typing import Optional
 from google.genai import types 
-from google.adk.models.llm_response import LlmResponse
 
 from langchain_core.utils.json import parse_json_markdown
+
+from typing import Optional
 
 
 
@@ -28,12 +28,12 @@ def check_empty_agents_state(callback_context: CallbackContext) -> Optional[type
 
         state_to_check = current_state.get("combined_matches", "{}")
 
-    elif agent_name == "podcast_writer_agent" and "web_search_results" in current_state:
+    elif (agent_name == "podcast_writer_agent" or agent_name == "podcast_dialogue_writer_agent") and "web_search_results" in current_state:
         print(f"[Callback] Agent {agent_name} has 'web_search_results' in state.")
 
         state_to_check = current_state.get("web_search_results", "{}")
 
-    elif agent_name == "text_to_speech_agent" and "podcast_scripts" in current_state:
+    elif (agent_name == "text_to_speech_agent" or agent_name == "text_to_speech_dialogue_agent") and "podcast_scripts" in current_state:
         print(f"[Callback] Agent {agent_name} has 'podcast_scripts' in state.")
 
         state_to_check = current_state.get("podcast_scripts", "{}")
@@ -56,8 +56,18 @@ def check_empty_agents_state(callback_context: CallbackContext) -> Optional[type
     if len(state_to_check_json.keys()) == 0:
         print(f"[Callback] State condition 'empty_state' met: Skipping agent {agent_name}.")
         # Return Content to skip the agent's run
+
+
+        custom_response = f"""
+            ```json
+            {{
+                "error": "Agent {agent_name} skipped by before_agent_callback due to state."
+            }}
+            ```
+        """
+
         return types.Content(
-            parts=[types.Part(text=f"Agent {agent_name} skipped by before_agent_callback due to state.")],
+            parts=[types.Part(text=custom_response)],
             role="model" # Assign model role to the overriding response
         )
     else:
