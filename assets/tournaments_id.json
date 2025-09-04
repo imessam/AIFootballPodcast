@@ -1,0 +1,77 @@
+{
+    "classes" : [
+        { 
+            "class_id": 158,
+            "class_name": "England",
+            "class_hash_image": "39bcba0feb303912d90fe5917cdfbabab8d0ac780d3c73f387344293b2e3ae58",
+            "leagues": [
+                {
+                    "id": 16,
+                    "name": "Premier League",
+                    "hash_image": "69a3f23712e51ed08e223d7d438c358acea5b8eac0b75cb1526589024fcd255b"
+                }
+            ]
+        },
+        {
+            "class_id": 150,
+            "class_name": "Spain",
+            "class_hash_image": "1340828f41f13f66ea6ec88fb5cb16cd41faea841897c904b922f3251da1cfd2",
+            "leagues": [
+                {
+                    "id": 55,
+                    "name": "LaLiga",
+                    "hash_image": "3b07650f93fd4612a8534bd5a4018812d7c730e444346a8ce6348791f121e9ba"
+                }
+            ]
+        },
+        {
+            "class_id": 193,
+            "class_name": "Egypt",
+            "class_hash_image": "45c19cb7826499b5574e8cc41a3e06899a52c226ee6fac0270a64e00318b2010",
+            "leagues": [
+                {
+                    "id": 27,
+                    "name": "Premier League",
+                    "hash_image": "28e4af685ab5b3b4ca34e1ef0c0bd919fab211c8194fd3a830e1cae8d3fa03ab"
+                }
+            ]
+        },
+        {
+            "class_id": 200,
+            "class_name": "Germany",
+            "class_hash_image": "8dc65a0ba0c8455385c2f08140c46c4027c9c5de48ce087321fe1abb3c5a7506",
+            "leagues": [
+                {
+                    "id": 21,
+                    "name": "Bundesliga",
+                    "hash_image": "635b98992213dce76b4aa360a9ebeac0dfeae4c1d7d6cc8f645565eaea065994"
+                }
+            ]
+        },
+        {
+            "class_id": 234,
+            "class_name": "Europe",
+            "class_hash_image": "5e6743723d2b9eb190622f323e97e34b6e80108f9ea579c1362b983b8ee0f9eb",
+            "leagues": [
+                {
+                    "id": 13,
+                    "name": "UEFA Champions League",
+                    "hash_image": "4e7cdb038c54856866c62d74a385f3afc909005d1c568afb28ecfe135d805d0b"
+                }
+            ]
+        },
+        {
+            "class_id": 236,
+            "class_name": "Africa",
+            "class_hash_image": "b23743fb1bcb93881fdcf8db159c7f108801581da36b279951ab4ac10ed2a6b5",
+            "leagues": [
+                {
+                    "id": 20,
+                    "name": "CAF Champions League",
+                    "hash_image": "82732d13faea5cbe80f9fd71e88f975db46bf38d38a0a3772caec22304f5c936"
+                }
+            ]
+        }
+
+    ]
+}
