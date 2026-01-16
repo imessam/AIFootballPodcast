@@ -24,18 +24,13 @@ from modules.utils import wave_file
 
 load_dotenv()
 
-print(f"FOOTBALL_DATA_API Key set: {'Yes' if os.environ.get('FOOTBALL_DATA_API_KEY') and os.environ['FOOTBALL_DATA_API_KEY'] != 'FOOTBALL_DATA_API_KEY' else 'No (REPLACE PLACEHOLDER!)'}")
-print(f"Google API Key set: {'Yes' if os.environ.get('GOOGLE_API_KEY') and os.environ['GOOGLE_API_KEY'] != 'YOUR_GOOGLE_API_KEY' else 'No (REPLACE PLACEHOLDER!)'}")
-print(f"ELEVENLABS_API_KEY set: {'Yes' if os.environ.get('ELEVENLABS_API_KEY') and os.environ['ELEVENLABS_API_KEY'] != 'ELEVENLABS_API_KEY' else 'No (REPLACE PLACEHOLDER!)'}")
+print(f"SPORT_DEV_KEY Key set: {'Yes' if os.environ.get('SPORT_DEV_KEY') and os.environ['SPORT_DEV_KEY'] != 'SPORT_DEV_KEY' else 'No (REPLACE PLACEHOLDER!)'}")
 
 
-MODEL_GEMINI_2_5_FLASH_PREVIEW_TTS = "gemini-2.5-flash-preview-tts"
-MODEL_GEMINI_2_5_PRO_TTS = "gemini-2.5-pro-preview-tts"
-
-def get_matches_by_date(date_str: str , tool_context: ToolContext) -> dict:
+def get_matches_by_date(date_str: str, leagues_id: list) -> dict:
 
     """
-        Fetches all matches for a given date from the Football Data API.
+        Fetches all matches for a given date from the Sportdevs API.
 
         Args:
             date_str (str): The date to fetch matches for in the format YYYY-MM-DD (e.g. "2023-05-31").
@@ -45,17 +40,11 @@ def get_matches_by_date(date_str: str , tool_context: ToolContext) -> dict:
                 and a dictionary containing the competition, home team, away team, home score and away score as the value if matches are found,
                 or an error message if no matches are found.
     """ 
-
-    agent_name = ""
-
-    if tool_context is not None:
-        agent_name = tool_context.agent_name
-
     tool_name = "get_matches_by_date"
 
     result: Dict[str, Union[str, Dict]] = {"status": "success"}
 
-    print(f"--- Tool : {tool_name} called for date: {date_str} by agent: {agent_name} ---")
+    print(f"--- Tool : {tool_name} called for date: {date_str} ---")
 
     date = datetime.now()
     current_date = datetime.now().date()
@@ -70,61 +59,63 @@ def get_matches_by_date(date_str: str , tool_context: ToolContext) -> dict:
 
     print(f"--- Tool : {tool_name} Fetching matches for date: {date_formatted}, current date: {current_date}")
 
-    api_key = os.getenv("FOOTBALL_DATA_API_KEY")
+    api_key = os.getenv("SPORT_DEV_KEY")
 
-    uri = f"https://api.football-data.org/v4/matches/?date={date_formatted}"
+    uri = f"https://football.sportdevs.com/matches-by-date-league?date=eq.{date_formatted}&league_id=eq.27"
 
     print(f"--- Tool : {tool_name} URI: {uri}")
 
-    headers = { 'X-Auth-Token': api_key }
+    headers = { 'Authorization': f"Bearer {api_key}" }
 
     response = requests.get(uri, headers=headers)
 
     response_json = response.json()
 
-    error_code = response_json.get("errorCode", -1)
+    print(f"--- Tool : {tool_name} Response: {response_json} ---")
 
-    if error_code > 0:
+    # error_code = response_json.get("errorCode", -1)
 
-        result["status"] = "error"
-        result["error"] = f"API error code : {error_code}, response: {response_json}"
+    # if error_code > 0:
 
-        return result
+    #     result["status"] = "error"
+    #     result["error"] = f"API error code : {error_code}, response: {response_json}"
 
-    matches = response_json.get("matches", [])
+    #     return result
 
-    if len(matches) == 0:
+    # matches = response_json.get("matches", [])
 
-        result["status"] = "error"
-        result["error"] = f"No matches found for date: {date}"
+    # if len(matches) == 0:
 
-        return result
+    #     result["status"] = "error"
+    #     result["error"] = f"No matches found for date: {date}"
+
+    #     return result
     
-    matches_dict = {}
+    # matches_dict = {}
 
-    for match in matches:
+    # for match in matches:
 
-        competition = match["competition"]["name"]
+    #     competition = match["competition"]["name"]
 
-        home_team = match["homeTeam"]["name"]
-        away_team = match["awayTeam"]["name"]
+    #     home_team = match["homeTeam"]["name"]
+    #     away_team = match["awayTeam"]["name"]
 
-        score = match["score"]["fullTime"]
+    #     score = match["score"]["fullTime"]
 
-        home_score = score["home"]
-        away_score = score["away"]
+    #     home_score = score["home"]
+    #     away_score = score["away"]
 
-        matches_dict[str(match["id"])] = {
-            "competition": competition,
-            "home_team": home_team,
-            "away_team": away_team,
-            "home_score": home_score,
-            "away_score": away_score
-        }
+    #     matches_dict[str(match["id"])] = {
+    #         "competition": competition,
+    #         "home_team": home_team,
+    #         "away_team": away_team,
+    #         "home_score": home_score,
+    #         "away_score": away_score
+    #     }
 
-    print(f"--- Tool : {tool_name} Matches found: {matches_dict} ---")
+    # print(f"--- Tool : {tool_name} Matches found: {matches_dict} ---")
 
-    result["matches"] = matches_dict
+    # result["matches"] = matches_dict
 
     return result
 
@@ -180,7 +171,7 @@ def podcast_script_text_to_speech_dialogue(podcast_script: dict, tool_context: T
 
     response = client.models.generate_content(
 
-        model=MODEL_GEMINI_2_5_FLASH_PREVIEW_TTS,
+        model="gemini-1.5-pro",
         contents=prompt,
 
         config=types.GenerateContentConfig(
@@ -392,20 +383,6 @@ def podcast_script_text_to_speech_dialogue_elevenlabs(podcast_script: dict, tool
     return file_name  # Return the name of the saved audio file
 
 
-
-def exit_loop(tool_context: ToolContext) -> Optional[dict]:
-
-    """Call this function ONLY when the "TOOL_CALLED" phrase is received, signaling the iterative process should end."""
-    
-    print(f"  [Tool Call] exit_loop triggered by {tool_context.agent_name}")
-
-    if tool_context.state.get("podcast_audio", None) is not None:
-        tool_context.actions.escalate = True
-        return tool_context.state["podcast_audio"]
-
-    # Return empty dict as tools should typically return JSON-serializable output
-    return None
-
 def upload_blob(source_file_name : str, output_file_name : str,  tool_context: Optional[ToolContext]) -> dict:
 
     """
@@ -449,3 +426,7 @@ def upload_blob(source_file_name : str, output_file_name : str,  tool_context: O
     print(f"Tool: Result: {result}")
 
     return result
+
+if __name__ == "__main__":
+
+    get_matches_by_date("2025-05-31", [27, 55])
