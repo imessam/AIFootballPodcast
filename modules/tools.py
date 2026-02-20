@@ -10,15 +10,8 @@ from datetime import datetime
 from typing import Dict, Optional, Union
 from dotenv import load_dotenv
 
-from google.adk.tools.tool_context import ToolContext
-from google import genai
-from google.genai import types
-from google.cloud import storage
-
-from elevenlabs import VoiceSettings
-from elevenlabs.client import ElevenLabs
-from elevenlabs import DialogueInput
-
+import asyncio
+import edge_tts
 from modules.utils import wave_file
 
 
@@ -59,374 +52,65 @@ def get_matches_by_date(date_str: str, leagues_id: list) -> dict:
 
     print(f"--- Tool : {tool_name} Fetching matches for date: {date_formatted}, current date: {current_date}")
 
-    api_key = os.getenv("SPORT_DEV_KEY")
+    api_key = os.getenv("FOOTBALL_DATA_API_KEY")
+    # Football-Data.org uri for matches
+    uri = f"https://api.football-data.org/v4/matches?dateFrom={date_formatted}&dateTo={date_formatted}"
 
-    uri = f"https://football.sportdevs.com/matches-by-date-league?date=eq.{date_formatted}&league_id=eq.27"
+    print(f"--- Tool : {tool_name} URI: {uri} ---")
 
-    print(f"--- Tool : {tool_name} URI: {uri}")
-
-    headers = { 'Authorization': f"Bearer {api_key}" }
+    headers = { 'X-Auth-Token': f"{api_key}" }
 
     response = requests.get(uri, headers=headers)
-
-    response_json = response.json()
-
-    print(f"--- Tool : {tool_name} Response: {response_json} ---")
-
-    # error_code = response_json.get("errorCode", -1)
-
-    # if error_code > 0:
-
-    #     result["status"] = "error"
-    #     result["error"] = f"API error code : {error_code}, response: {response_json}"
-
-    #     return result
-
-    # matches = response_json.get("matches", [])
-
-    # if len(matches) == 0:
-
-    #     result["status"] = "error"
-    #     result["error"] = f"No matches found for date: {date}"
-
-    #     return result
     
-    # matches_dict = {}
+    if response.status_code != 200:
+        print(f"--- Tool : {tool_name} Error: API returned status {response.status_code} ---")
+        print(f"--- Raw Error Response: {response.text} ---")
+        return {"status": "error", "error": f"API returned status {response.status_code}", "matches": {}}
 
-    # for match in matches:
+    try:
+        response_json = response.json()
+        print(f"--- Tool : {tool_name} Raw API Response Successfully Logged ---")
+        # Log limited version of the response to avoid cluttering but show structure
+        # print(f"--- Raw JSON: {response_json} ---") 
+    except Exception as e:
+        print(f"--- Tool : {tool_name} Error parsing JSON: {e} ---")
+        return {"status": "error", "error": "Invalid JSON response", "matches": {}}
 
-    #     competition = match["competition"]["name"]
-
-    #     home_team = match["homeTeam"]["name"]
-    #     away_team = match["awayTeam"]["name"]
-
-    #     score = match["score"]["fullTime"]
-
-    #     home_score = score["home"]
-    #     away_score = score["away"]
-
-    #     matches_dict[str(match["id"])] = {
-    #         "competition": competition,
-    #         "home_team": home_team,
-    #         "away_team": away_team,
-    #         "home_score": home_score,
-    #         "away_score": away_score
-    #     }
-
-    # print(f"--- Tool : {tool_name} Matches found: {matches_dict} ---")
-
-    # result["matches"] = matches_dict
-
-    return result
+    return response_json
 
 
-def podcast_script_text_to_speech_dialogue(podcast_script: dict, tool_context: ToolContext) -> str:
-
+async def local_text_to_speech(text: str, speaker_name: str = "en-US-ChristopherNeural") -> str:
     """
-        Converts a podcast dialogue script text to speech.
+    Converts text to speech using a local TTS (edge-tts).
 
-        Args:
-            podcast_script (dict): A dictionary containing the script of the podcast to be converted to speech, with keys "speaker_1", "speaker_2", and "content", eg:
-            {
-                "speaker_1": "Ahmed",
-                "speaker_2": "Fatima",
-                "content": "Ahmed: "ahmed_first_transcript"\nFatima: "fatima_first_transcript"\nAhmed: "ahmed_second_transcript"\nFatima: "fatima_second_transcript" etc."
-            } 
-        Returns:
-            str: The path of the saved audio file containing the generated speech.
-    """ 
+    Args:
+        text (str): The text to convert to speech.
+        speaker_name (str): The name of the voice to use. Defaults to "en-US-ChristopherNeural".
 
-    agent_name = ""
-
-    if tool_context is not None:
-        agent_name = tool_context.agent_name
-
-    tool_name = "podcast_script_text_to_speech_dialogue"
-
-    print(f"--- Tool : {tool_name} called by agent: {agent_name} ---")
-
-    client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-
-    speaker_1 = podcast_script.get("speaker_1", "Joe")
-    speaker_2 = podcast_script.get("speaker_2", "Jane")
-
-    content = podcast_script.get("content", "")
-
-    disclaimer = """
-                    Disclaimer: The following conversation is a fictional conversation between two speakers.
-                    The whole script is AI generated and does not represent any real conversation.
-                    Do not take it seriously. It is meant for entertainment purposes only.
-                    Enjoy.
-                """
-    prompt = f"""
-            You have to convert a podcast script text to speech between two speakers.
-            But first, you have to say a disclaimer first.
-            So say in a serious tone: {disclaimer}
-            {speaker_1} is a man and {speaker_2} is a woman.
-            Then, you have to TTS the following conversation between {speaker_1} and {speaker_2}:
-            {content}
-           """
-    
-    print(f"--- Tool : {tool_name} Generating audio for prompt: {prompt} ---")
-
-    response = client.models.generate_content(
-
-        model="gemini-1.5-pro",
-        contents=prompt,
-
-        config=types.GenerateContentConfig(
-            response_modalities=["AUDIO"],
-
-            speech_config=types.SpeechConfig(
-                multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
-
-                    speaker_voice_configs=[
-
-                        types.SpeakerVoiceConfig(
-                            speaker=speaker_1,
-                            voice_config=types.VoiceConfig(
-                                prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                                    voice_name='Kore',
-                                )
-                            )
-                        ),
-                        
-                        types.SpeakerVoiceConfig(
-                            speaker=speaker_2,
-                            voice_config=types.VoiceConfig(
-                                prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                                    voice_name='Puck',
-                                )
-                            )
-                        ),
-                    ]
-                )
-            )
-        )
-    )
-
-    if not response.candidates or not response.candidates[0].content or not response.candidates[0].content.parts or not response.candidates[0].content.parts[0].inline_data:
-        print(f"--- Tool : {tool_name} No audio content generated ---")
-        return "No audio content generated"
-    
-    data = response.candidates[0].content.parts[0].inline_data.data
+    Returns:
+        str: The path to the generated audio file.
+    """
+    tool_name = "local_text_to_speech"
+    print(f"--- Tool : {tool_name} Generating audio for text: {text[:50]}... ---")
 
     out_dir = "output"
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
-    file_name= f"{out_dir}/out.wav"
-    if tool_context is not None:
-        file_name = f"{out_dir}/{tool_context.agent_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
+    file_name = f"{out_dir}/podcast_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
 
-    wave_file(file_name, data) # Saves the file to current directory
-
-    print(f"--- Tool : {tool_name} Audio file saved as: {file_name} ---")
-
-    return file_name  # Return the name of the saved audio file
-	
-
-def podcast_script_text_to_speech(podcast_script: dict, tool_context: ToolContext) -> str:
-
-    """
-        Converts a podcast script text to speech.
-
-        Args:
-            podcast_script (dict): A dictionary containing the script of the podcast to be converted to speech, with keys "speaker_name", and "content", eg:
-            {
-                "speaker_1": "Ahmed",
-                "content": "podcast_transcript"
-            } 
-        Returns:
-            str: The path of the saved audio file containing the generated speech.
-    """ 
-
-    agent_name = ""
-
-    if tool_context is not None:
-        agent_name = tool_context.agent_name
-
-    tool_name = "podcast_text_to_speech"
-
-    print(f"--- Tool : {tool_name} called by agent: {agent_name} ---")
-
-
-    ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
-    
-    elevenlabs = ElevenLabs(
-        api_key=ELEVENLABS_API_KEY,
-    )
-
-    speaker_name = podcast_script.get("speaker_name", "Joe")
-
-    content = podcast_script.get("content", "")
-
-    disclaimer = """
-                    Disclaimer: The following podcast script is a fictional script.
-                    The whole script is AI generated and does not represent any real content.
-                    Do not take it seriously. It is meant for entertainment purposes only.
-                    Enjoy.
-                """
-
-    prompt = f"""
-            {disclaimer}.
-            {content}
-           """
-    
-    print(f"--- Tool : {tool_name} Generating audio for prompt: {prompt} ---")
-
-
-    response = elevenlabs.text_to_speech.convert(
-        text=prompt,
-        output_format="pcm_24000",
-        model_id="eleven_flash_v2_5",
-        voice_id="JBFqnCBsd6RMkjVDRZzb"
-    )
-
-    out_dir = "output"
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-
-    file_name= f"{out_dir}/out.wav"
-    if tool_context is not None:
-        file_name = f"{out_dir}/{tool_context.agent_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
-
-    data : bytes = b""
-    for chunk in response:
-        if chunk:
-            data += chunk
-
-    wave_file(file_name, data) # Saves the file to current directory
+    communicate = edge_tts.Communicate(text, speaker_name)
+    await communicate.save(file_name)
 
     print(f"--- Tool : {tool_name} Audio file saved as: {file_name} ---")
-    
-    return file_name  # Return the name of the saved audio file
+
+    return file_name
 
 
-def podcast_script_text_to_speech_dialogue_elevenlabs(podcast_script: dict, tool_context: ToolContext) -> str:
-
-
-    agent_name = ""
-
-    if tool_context is not None:
-        agent_name = tool_context.agent_name
-
-    tool_name = "podcast_text_to_speech_elevenlabs"
-
-    print(f"--- Tool : {tool_name} called by agent: {agent_name} ---")
-
-
-    ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
-    
-    elevenlabs = ElevenLabs(
-        api_key=ELEVENLABS_API_KEY,
-    )
-
-    speaker_1 = podcast_script.get("speaker_1", "Joe")
-    speaker_2 = podcast_script.get("speaker_2", "Jane")
-
-    content = podcast_script.get("content", "")
-
-    disclaimer = """
-                    Disclaimer: The following conversation is a fictional conversation between two speakers.
-                    The whole script is AI generated and does not represent any real conversation.
-                    Do not take it seriously. It is meant for entertainment purposes only.
-                    Enjoy.
-                """
-
-    prompt_to_dialogue = []
-
-    disclaimer = DialogueInput(
-        text=disclaimer,
-        voice_id="JBFqnCBsd6RMkjVDRZzb",
-    )
-
-    prompt_to_dialogue.append(disclaimer)
-
-    for line in content.split("\n"):
-
-        speaker_name = line.split(":")[0].strip()
-        text = line.split(":")[1].strip()
-
-        prompt_to_dialogue.append(
-            DialogueInput(
-                text=text,
-                voice_id="JBFqnCBsd6RMkjVDRZzb" if speaker_name == speaker_1 else "Aw4FAjKCGjjNkVhN1Xmq",
-            )
-        )
-    
-    print(f"--- Tool : {tool_name} Generating audio for prompt: {prompt_to_dialogue} ---")
-
-
-    response = elevenlabs.text_to_dialogue.convert(
-        inputs=prompt_to_dialogue,
-        output_format="pcm_24000"
-    )
-
-    out_dir = "output"
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-
-    file_name= f"{out_dir}/out.wav"
-    if tool_context is not None:
-        file_name = f"{out_dir}/{tool_context.agent_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
-
-    data : bytes = b""
-    for chunk in response:
-        if chunk:
-            data += chunk
-
-    wave_file(file_name, data) # Saves the file to current directory
-
-    print(f"--- Tool : {tool_name} Audio file saved as: {file_name} ---")
-    
-    return file_name  # Return the name of the saved audio file
-
-
-def upload_blob(source_file_name : str, output_file_name : str,  tool_context: Optional[ToolContext]) -> dict:
-
-    """
-        Uploads a file to a Google Cloud Storage bucket.
-
-        Args:
-            source_file_name (str): The path to the file to upload.
-            output_file_name (str): The uploaded file name.
-        Returns:
-            dict: A dictionary containing the url of the uploaded file, or an error message if the upload fails.
-    """
-    
-    if not os.path.exists(source_file_name):
-        print(f"Tool: File {source_file_name} does not exist.")
-        return {"error": f"File {source_file_name} does not exist."}
-
-    BUCKET_NAME = os.environ.get("BUCKET_NAME", None)
-    if BUCKET_NAME is None:
-        BUCKET_NAME = "gemini_podacst_agent_bucket"
-
-    BUCKET_DESTINATION = os.environ.get("BUCKET_DESTINATION", None)
-    if BUCKET_DESTINATION is None:
-        BUCKET_DESTINATION = "output"
-
-    destination_blob_name = f"{BUCKET_DESTINATION}/{output_file_name}.wav"
-
-    print(f"Tool: Uploading {source_file_name} to {destination_blob_name}")
-
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(BUCKET_NAME)
-    blob = bucket.blob(destination_blob_name)
-
-    blob.upload_from_filename(source_file_name)
-
-    print(
-        f"Tool: File {source_file_name} uploaded to {destination_blob_name}."
-    )
-
-    result = {"destination_blob_url": f"https://storage.googleapis.com/{BUCKET_NAME}/{destination_blob_name}"}
-
-    print(f"Tool: Result: {result}")
-
-    return result
 
 if __name__ == "__main__":
-
-    get_matches_by_date("2025-05-31", [27, 55])
+    import asyncio
+    # Simple test for local tts
+    async def test():
+        await local_text_to_speech("Testing local podcast generation.")
+    asyncio.run(test())

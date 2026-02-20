@@ -1,0 +1,16 @@
+[project]
+name = "aifootballpodcast"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "edge-tts>=7.2.7",
+    "google-api-python-client>=2.190.0",
+    "langchain-openai>=1.1.10",
+    "langgraph>=1.0.9",
+    "litellm>=1.81.13",
+    "python-dotenv>=1.2.1",
+    "requests>=2.32.5",
+    "tts",
+]
