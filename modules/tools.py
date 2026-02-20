@@ -79,32 +79,13 @@ def get_matches_by_date(date_str: str, leagues_id: list) -> dict:
     return response_json
 
 
+from .tts import TTSManager
+
 async def local_text_to_speech(text: str, speaker_name: str = "en-US-ChristopherNeural") -> str:
     """
-    Converts text to speech using a local TTS (edge-tts).
-
-    Args:
-        text (str): The text to convert to speech.
-        speaker_name (str): The name of the voice to use. Defaults to "en-US-ChristopherNeural".
-
-    Returns:
-        str: The path to the generated audio file.
+    Legacy wrapper for TTSManager to maintain compatibility with existing nodes.
     """
-    tool_name = "local_text_to_speech"
-    print(f"--- Tool : {tool_name} Generating audio for text: {text[:50]}... ---")
-
-    out_dir = "output"
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-
-    file_name = f"{out_dir}/podcast_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
-
-    communicate = edge_tts.Communicate(text, speaker_name)
-    await communicate.save(file_name)
-
-    print(f"--- Tool : {tool_name} Audio file saved as: {file_name} ---")
-
-    return file_name
+    return await TTSManager.generate_audio(text)
 
 
 

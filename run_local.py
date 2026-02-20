@@ -8,27 +8,27 @@ base_path = os.path.abspath(os.path.dirname(__file__))
 if base_path not in sys.path:
     sys.path.insert(0, base_path)
 
-from modules.langgraph_agent import create_podcast_graph
+from modules.langgraph_agent import FootballPodcastAgent
 
 async def main():
     load_dotenv()
     
-    print("--- Starting Local Football Podcast Agent (LangGraph) ---")
+    print("--- [Main] Starting Local Football Podcast Agent (LangGraph Class-Based) ---")
     
     # Check if a query was provided, otherwise use default
     query = "Today's football highlights"
     if len(sys.argv) > 1:
         query = sys.argv[1]
     
-    print(f"Query: {query}")
+    print(f"--- [Main] Query: {query} ---")
     
-    # Initialize the graph
-    app = create_podcast_graph()
+    # Initialize the Agent
+    agent = FootballPodcastAgent()
     
-    # Run the graph
-    final_state = await app.ainvoke({"query": query})
+    # Run the Agent
+    final_state = await agent.run(query)
     
-    print("\n--- Execution Complete ---")
+    print("\n--- [Main] Execution Complete ---")
     
     if final_state.get("errors"):
         print("Errors encountered:")
