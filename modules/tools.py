@@ -11,6 +11,8 @@ from typing import Dict, Optional, Union
 from dotenv import load_dotenv
 
 import asyncio
+import logging
+from duckduckgo_search import DDGS
 from modules.utils import wave_file
 
 
@@ -82,6 +84,41 @@ def get_matches_by_date(date_str: str, leagues_id: list) -> dict:
         return {"status": "error", "error": "Invalid JSON response", "matches": {}}
 
     return response_json
+
+
+def search_football_news(query: str, max_results: int = 3) -> str:
+    """
+    Searches the web for recent news related to a specific football query using DuckDuckGo.
+    
+    Args:
+        query (str): The search term (e.g. "Real Madrid vs Barcelona news").
+        max_results (int): The maximum number of news snippets to return.
+        
+    Returns:
+        str: A concatenated string of news snippets found, or an empty string if none.
+    """
+    tool_name = "search_football_news"
+    print(f"--- Tool : {tool_name} called for query: {query} ---")
+    
+    try:
+        results = []
+        with DDGS() as ddgs:
+            # First try the news endpoint
+            ddgs_news = list(ddgs.news(query, max_results=max_results))
+            if ddgs_news:
+                for r in ddgs_news:
+                    results.append(f"- {r.get('title', '')}: {r.get('body', '')}")
+            else:
+                # Fallback to general text search
+                ddgs_text = list(ddgs.text(query, max_results=max_results))
+                for r in ddgs_text:
+                    results.append(f"- {r.get('title', '')}: {r.get('body', '')}")
+                    
+        print(f"--- Tool : {tool_name} found {len(results)} results ---")
+        return "\n".join(results)
+    except Exception as e:
+        print(f"--- Tool : {tool_name} Error searching web: {e} ---")
+        return f"Error fetching news: {str(e)}"
 
 
 from .tts import TTSManager

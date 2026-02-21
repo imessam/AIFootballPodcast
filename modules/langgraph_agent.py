@@ -6,7 +6,7 @@ from langgraph.graph import StateGraph, START, END
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
-from modules.tools import get_matches_by_date, local_text_to_speech
+from modules.tools import get_matches_by_date, local_text_to_speech, search_football_news
 from modules.utils import wave_file
 from modules.constants import DEFAULT_COMPETITIONS
 
@@ -65,7 +65,15 @@ class FootballPodcastAgent:
             home = match.get('homeTeam', {}).get('name', 'Unknown')
             away = match.get('awayTeam', {}).get('name', 'Unknown')
             score = f"{match.get('score', {}).get('fullTime', {}).get('home', '?')}-{match.get('score', {}).get('fullTime', {}).get('away', '?')}"
-            all_news.append(f"Match: {home} vs {away}. Result: {score}.")
+            
+            match_summary = f"Match: {home} vs {away}. Result: {score}."
+            all_news.append(match_summary)
+            
+            # Fetch recent news related to this match
+            query = f"{home} vs {away} football news"
+            news_snippets = search_football_news(query, max_results=3)
+            if news_snippets:
+                all_news.append(f"Latest news around {home} vs {away}:\n{news_snippets}")
         
         return {"news": all_news}
 
