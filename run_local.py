@@ -35,8 +35,13 @@ async def main():
         for error in final_state["errors"]:
             print(f"- {error}")
     
+    if final_state.get("script"):
+        print("\n--- [Main] Generated Script ---")
+        print(final_state["script"])
+        print("-------------------------------\n")
+
     if final_state.get("audio_path"):
-        print(f"\nSuccess! Podcast audio generated at: {final_state['audio_path']}")
+        print(f"Success! Podcast audio generated at: {final_state['audio_path']}")
     else:
         print("\nFailed to generate podcast audio.")
 

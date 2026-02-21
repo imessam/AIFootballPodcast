@@ -8,6 +8,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
 from modules.tools import get_matches_by_date, local_text_to_speech
 from modules.utils import wave_file
+from modules.constants import DEFAULT_COMPETITIONS
 
 # Define the State
 class AgentState(TypedDict):
@@ -42,7 +43,7 @@ class FootballPodcastAgent:
         print("--- [FootballPodcastAgent] Node: fetch_matches_node ---")
         today = datetime.now().strftime("%Y-%m-%d")
         try:
-            result = get_matches_by_date(today, [27])
+            result = get_matches_by_date(today, DEFAULT_COMPETITIONS)
             matches_list = result.get("matches", [])
             print(f"--- [FootballPodcastAgent] Matches Fetched: {len(matches_list)} ---")
             return {"matches": result, "errors": []}

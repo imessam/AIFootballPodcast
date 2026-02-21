@@ -1,3 +1,5 @@
+import wave
+
 # Decoupled utilities for LangGraph flow
 
 def wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):

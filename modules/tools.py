@@ -11,7 +11,6 @@ from typing import Dict, Optional, Union
 from dotenv import load_dotenv
 
 import asyncio
-import edge_tts
 from modules.utils import wave_file
 
 
@@ -49,12 +48,18 @@ def get_matches_by_date(date_str: str, leagues_id: list) -> dict:
         return {"error": f"Date must not be in the future, provided date: {date}, current date: {current_date}"}
         
     date_formatted = date.strftime("%Y-%m-%d")
+    from datetime import timedelta
+    date_to = (date + timedelta(days=1)).strftime("%Y-%m-%d")
 
     print(f"--- Tool : {tool_name} Fetching matches for date: {date_formatted}, current date: {current_date}")
 
     api_key = os.getenv("FOOTBALL_DATA_API_KEY")
     # Football-Data.org uri for matches
-    uri = f"https://api.football-data.org/v4/matches?dateFrom={date_formatted}&dateTo={date_formatted}"
+    competitions = ""
+    if leagues_id:
+        competitions = "&competitions=" + ",".join(map(str, leagues_id))
+    
+    uri = f"https://api.football-data.org/v4/matches?dateFrom={date_formatted}&dateTo={date_to}{competitions}"
 
     print(f"--- Tool : {tool_name} URI: {uri} ---")
 
