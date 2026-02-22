@@ -1,103 +1,168 @@
 # AIFootballPodcast
-AIFootballPodcast leverages LangGraph as its agent framework, utilizes local LLM models for large language model tasks, text-to-speech (TTS), and employs the Google Search API for web research. The system orchestrates a pipeline of specialized agents to automate the creation of football match podcasts, from data collection and research to script generation, audio synthesis, and cloud publishing.
-The project is part of [Google's ADK hackathon](https://googlecloudmultiagents.devpost.com/).
 
+**AIFootballPodcast** is an AI-powered pipeline that automatically generates football (soccer) podcast episodes. It fetches live match data from [Football-Data.org](https://www.football-data.org/), searches for related news via DuckDuckGo, generates an engaging podcast script using a local LLM (via Ollama), and converts the script to speech using [Chatterbox TTS](https://github.com/chatterbox-tts/chatterbox).
 
-## Agents Flow Diagram.
+The project is part of [Google's ADK Hackathon](https://googlecloudmultiagents.devpost.com/).
+
+---
+
+## Agent Pipeline Diagram
+
 ![AIFootballPodcastDiagram](assets/diagram.png)
 
-## Models used:
+The pipeline is orchestrated as a **LangGraph** state machine with four sequential nodes:
 
-- Local LLM for text generation: Ollama (qwen3:0.6b, etc)
-- Chatterbox TTS for podcast script text to speech: [Chatterbox](https://github.com/chatterbox-tts/chatterbox)
+```
+fetch_matches → search_news → generate_script → tts
+```
 
-## Web UI live demo deployed on Google Cloud run.
+| Node | Description |
+|---|---|
+| `fetch_matches` | Fetches today's matches from Football-Data.org for configured competitions |
+| `search_news` | Searches DuckDuckGo for recent news snippets for each match |
+| `generate_script` | Prompts a local LLM to write a conversational podcast script |
+| `tts` | Synthesizes the script into a `.wav` audio file using Chatterbox TTS |
 
-- URL: [https://football-podcast-agent-388890953707.us-central1.run.app](https://football-podcast-agent-388890953707.us-central1.run.app)
+---
 
-## Youtube Demo Video.
+## Demo
 
 [![FootballPodcastDemo](https://img.youtube.com/vi/hOF1Z-7p4qY/0.jpg)](https://www.youtube.com/watch?v=hOF1Z-7p4qY)
 
-## Features
+---
 
-- Fetches football match data from the Football Data API and Google Search.
-- Performs web research on each match using the Google Search API.
-- Generates podcast scripts for each match using local LLMs.
-- Converts scripts to speech using Chatterbox TTS.
-- Uploads generated audio files to Google Cloud Storage.
-- Modular agent-based architecture using LangGraph.
+## Tech Stack
+
+| Component | Technology |
+|---|---|
+| Agent framework | [LangGraph](https://github.com/langchain-ai/langgraph) |
+| LLM | Local model via [Ollama](https://ollama.com/) (e.g. `qwen3:0.6b`) with `langchain-openai` |
+| Web search | [duckduckgo-search](https://pypi.org/project/duckduckgo-search/) |
+| Football data | [Football-Data.org API v4](https://www.football-data.org/) |
+| Text-to-speech | [Chatterbox TTS](https://github.com/chatterbox-tts/chatterbox) (CUDA / CPU) |
+| Python | ≥ 3.13 |
+
+---
 
 ## Project Structure
 
 ```
 AIFootballPodcast/
-
-├── modules/         # Core modules for data fetching, processing, and synthesis
-├── output/          # Output directory for audio files
-├── run.py           # Entry point for running agents with custom queries
-├── .env             # Environment variables
-├── deploy.sh        # Deployment script
-├── requirements.txt # Python dependencies
-└── README.md        # Project documentation
+├── modules/
+│   ├── langgraph_agent.py  # LangGraph state machine & node definitions
+│   ├── tools.py            # Football-Data API client & DuckDuckGo search helper
+│   ├── tts.py              # ChatterboxTTS singleton manager (async, CUDA/CPU)
+│   ├── constants.py        # Default competitions (Premier League, etc.)
+│   └── utils.py            # Shared utility helpers
+├── output/                 # Generated .wav podcast files (timestamped)
+├── tests/                  # Unit & integration tests (pytest)
+├── run_local.py            # CLI entry point
+├── pyproject.toml          # Project metadata & dependencies (uv / pip)
+├── requirements.txt        # Pip-compatible dependency list
+└── .env                    # API keys & model configuration (not committed)
 ```
+
+---
 
 ## Installation
 
-1. Clone the repository:
-    ```bash
-    git clone https://github.com/imessam/AIFootballPodcast.git
-    cd AIFootballPodcast
-    ```
+### 1. Clone the repository
 
-2. Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
+```bash
+git clone https://github.com/imessam/AIFootballPodcast.git
+cd AIFootballPodcast
+```
 
-3. Set up required API keys and credentials for:
-    - Football Data API
-4. API keys and credentials should be set as environment variables or in a `.env` file:
+### 2. Install dependencies
 
-    ```bash
-    export FOOTBALL_DATA_API_KEY="YOUR_FOOTBALL_DATA_API_KEY"
-    export LOCAL_OPENAI_BASE_URL="http://localhost:11434/v1"
-    export LOCAL_MODEL_NAME="qwen3:0.6b"
-    ```
+**With `uv` (recommended):**
+```bash
+uv sync
+```
+
+**With `pip`:**
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Install and start Ollama
+
+Download [Ollama](https://ollama.com/) and pull the model you want to use:
+
+```bash
+ollama pull qwen3:0.6b
+```
+
+### 4. Configure environment variables
+
+Create a `.env` file in the project root (or export the variables in your shell):
+
+```bash
+# Required: Football-Data.org API key (free tier available)
+FOOTBALL_DATA_API_KEY="your_football_data_api_key"
+
+# Optional: Override defaults if using a different local model server
+LOCAL_OPENAI_BASE_URL="http://localhost:11434/v1"   # default
+LOCAL_MODEL_NAME="qwen3:0.6b"                       # default
+```
+
+---
+
 ## Usage
 
-- To run the agents with custom queries:
-  ```bash
-  python run.py {query} 
-  Examples:
+```bash
+# Default: today's football highlights
+python run_local.py
 
-  Podcast about a specific match: 
-  python run.py "Ahly vs Real Madrid"
+# Podcast about a specific match
+python run_local.py "Ahly vs Real Madrid"
 
-  Podcast from a specific date:
-  python run.py "2025-05-31"
-  ```
+# Podcast for matches from a specific date
+python run_local.py "2025-05-31"
+```
 
-## Issues
+Generated audio is saved to `output/podcast_<YYYYMMDD_HHMMSS>.wav`.
 
-- Sometimes, the text to speech agent doesn't call the `podcast_text_to_speech` tool. This is related to the instructions given to the agent.
-- If you find any issues or have suggestions, please open an issue on GitHub.
+---
+
+## Running Tests
+
+```bash
+pytest
+# or with uv:
+uv run pytest
+```
+
+---
+
+## Known Issues
+
+- The TTS step occasionally fails because the LLM does not produce a `<script>…</script>` block. A fallback regex is applied, but empty scripts will be caught and reported in `state["errors"]`.
+- Chatterbox TTS requires a GPU for fast inference; CPU synthesis is supported but significantly slower.
+
+---
 
 ## TODO
-- [ ] Support other models for LLM and TTS, open or closed sources.
-- [ ] Support multiple languages.
-- [ ] Longer and more informative podcast scripts.
-- [ ] Different podcast speakers voices and characters.
-- [ ] Generate animated podcasts.
+
+- [ ] Support additional competitions beyond the Premier League
+- [ ] Support other LLMs (OpenAI, Gemini, etc.)
+- [ ] Support multiple output languages
+- [ ] Longer, more detailed podcast scripts
+- [ ] Multiple speaker voices and characters
+- [ ] Generate animated video podcasts
+
+---
 
 ## License
 
 This project is licensed under the [Apache License, Version 2.0](LICENSE).
 
+---
+
 ## Acknowledgements
 
-
-- Local LLM via Ollama and Chatterbox TTS
-- Google Search API
-- Football Data API
-
+- [Chatterbox TTS](https://github.com/chatterbox-tts/chatterbox) for local text-to-speech synthesis
+- [Ollama](https://ollama.com/) for local LLM serving
+- [LangGraph](https://github.com/langchain-ai/langgraph) for agent orchestration
+- [Football-Data.org](https://www.football-data.org/) for football match data
+- [DuckDuckGo Search](https://pypi.org/project/duckduckgo-search/) for free web search
