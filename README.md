@@ -1,5 +1,5 @@
 # AIFootballPodcast
-AIFootballPodcast leverages Google's Agent Development Kit (ADK) as its agent framework, utilizes Gemini models for both large language model (LLM) tasks and text-to-speech (TTS), and employs the Google Search API for web research. The system orchestrates a pipeline of specialized agents to automate the creation of football match podcasts, from data collection and research to script generation, audio synthesis, and cloud publishing.
+AIFootballPodcast leverages LangGraph as its agent framework, utilizes local LLM models for large language model tasks, text-to-speech (TTS), and employs the Google Search API for web research. The system orchestrates a pipeline of specialized agents to automate the creation of football match podcasts, from data collection and research to script generation, audio synthesis, and cloud publishing.
 The project is part of [Google's ADK hackathon](https://googlecloudmultiagents.devpost.com/).
 
 
@@ -8,10 +8,10 @@ The project is part of [Google's ADK hackathon](https://googlecloudmultiagents.d
 
 ## Models used:
 
-- Gemini LLM for text generation: [Gemini 2.0 flash](https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-0-flash) and [Gemini 2.5 Pro](https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/2-5-pro)
-- Gemini TTS for podcast script text to speech: [Gemini 2.5 flash preview-tts](https://ai.google.dev/gemini-api/docs/models#gemini-2.5-flash-preview-tts)
+- Local LLM for text generation: Ollama (qwen3:0.6b, etc)
+- Chatterbox TTS for podcast script text to speech: [Chatterbox](https://github.com/chatterbox-tts/chatterbox)
 
-## ADK Web UI live demo deployed on Google Cloud run.
+## Web UI live demo deployed on Google Cloud run.
 
 - URL: [https://football-podcast-agent-388890953707.us-central1.run.app](https://football-podcast-agent-388890953707.us-central1.run.app)
 
@@ -23,16 +23,16 @@ The project is part of [Google's ADK hackathon](https://googlecloudmultiagents.d
 
 - Fetches football match data from the Football Data API and Google Search.
 - Performs web research on each match using the Google Search API.
-- Generates podcast scripts for each match using Gemini LLMs.
-- Converts scripts to speech using Gemini TTS.
+- Generates podcast scripts for each match using local LLMs.
+- Converts scripts to speech using Chatterbox TTS.
 - Uploads generated audio files to Google Cloud Storage.
-- Modular agent-based architecture using Google's ADK.
+- Modular agent-based architecture using LangGraph.
 
 ## Project Structure
 
 ```
 AIFootballPodcast/
-├── agent.py         # ADK Web UI agent definitions
+
 ├── modules/         # Core modules for data fetching, processing, and synthesis
 ├── output/          # Output directory for audio files
 ├── run.py           # Entry point for running agents with custom queries
@@ -56,14 +56,13 @@ AIFootballPodcast/
     ```
 
 3. Set up required API keys and credentials for:
-    - Google Gemini API KEY
     - Football Data API
 4. API keys and credentials should be set as environment variables or in a `.env` file:
 
     ```bash
-    export GOOGLE_API_KEY="YOUR_GEMINI_API_KEY"
     export FOOTBALL_DATA_API_KEY="YOUR_FOOTBALL_DATA_API_KEY"
-    export GOOGLE_GENAI_USE_VERTEXAI=FALSE
+    export LOCAL_OPENAI_BASE_URL="http://localhost:11434/v1"
+    export LOCAL_MODEL_NAME="qwen3:0.6b"
     ```
 ## Usage
 
@@ -77,10 +76,6 @@ AIFootballPodcast/
 
   Podcast from a specific date:
   python run.py "2025-05-31"
-  ```
-- To use the ADK Web UI, run:
-  ```bash
-  adk web
   ```
 
 ## Issues
@@ -101,8 +96,8 @@ This project is licensed under the [Apache License, Version 2.0](LICENSE).
 
 ## Acknowledgements
 
-- Google Agent Development Kit (ADK)
-- Gemini LLM and TTS
+
+- Local LLM via Ollama and Chatterbox TTS
 - Google Search API
 - Football Data API
 

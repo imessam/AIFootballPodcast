@@ -48,10 +48,13 @@ class TTSManager:
         print(f"--- [TTSManager] Synthesizing speech... ---")
         
         try:
-            wav = model.generate(text)
+            import asyncio
+            # Run the heavy, synchronous generation task in a separate thread 
+            # to avoid blocking the LangGraph asyncio event loop.
+            wav = await asyncio.to_thread(model.generate, text)
             
-            # Save to file
-            torchaudio.save(file_name, wav, sample_rate=model.sr)
+            # Save to file, ensuring the tensor is on CPU 
+            torchaudio.save(file_name, wav.cpu(), sample_rate=model.sr)
             
             print(f"--- [TTSManager] Audio saved: {file_name} ---")
             return file_name

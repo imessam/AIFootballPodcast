@@ -6,9 +6,8 @@ AIFootballPodcast automates the creation of football (soccer) podcast episodes. 
 ## 2. Architecture & Tech Stack
 - **Agent Orchestration**: LangGraph (`modules/langgraph_agent.py`) coordinates the stateful workflow.
 - **LLM Integrations**: 
-  - Remote APIs (Gemini models) via Google Cloud/v1 APIs.
   - Local Models (e.g., Qwen run via Ollama or custom local server: `http://localhost:11434/v1`) using `langchain_openai`.
-- **TTS**: Local TTS alongside Gemini/Google TTS models.
+- **TTS**: Local TTS using Chatterbox TTS.
 - **Workflow Pipeline**:
   1. `fetch_matches`: Uses `get_matches_by_date` using the `FOOTBALL_DATA_API_KEY`.
   2. `search_news`: Creates textual context from matches.
@@ -22,8 +21,7 @@ AIFootballPodcast automates the creation of football (soccer) podcast episodes. 
   - `tts.py`: Audio generation manager.
   - `constants.py`: Configurations (e.g., fallback competitions).
 - `output/` - Contains the final rendered audio files (`.wav`).
-- `run_local.py` / `run.py` - Application execution scripts for running pipelines via CLI.
-- `agent.py` - Legacy/ADK Web UI agent integrations.
+
 
 ## 4. Development Guidelines for AI Agents
 When generating code or refactoring this repository, AI agents MUST follow these instructions:
