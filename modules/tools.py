@@ -114,7 +114,7 @@ def search_football_news(query: str, max_results: int = 3) -> str:
                 for r in ddgs_text:
                     results.append(f"- {r.get('title', '')}: {r.get('body', '')}")
                     
-        print(f"--- Tool : {tool_name} found {len(results)} results ---")
+        print(f"--- Tool : {tool_name} found {len(results)} results: {results} ---")
         return "\n".join(results)
     except Exception as e:
         print(f"--- Tool : {tool_name} Error searching web: {e} ---")
@@ -127,6 +127,8 @@ async def local_text_to_speech(text: str, speaker_name: str = "en-US-Christopher
     """
     Legacy wrapper for TTSManager to maintain compatibility with existing nodes.
     """
+    tool_name = "local_text_to_speech"
+    print(f"--- Tool : {tool_name} called for text: {text} ---")
     return await TTSManager.generate_audio(text)
 
 
