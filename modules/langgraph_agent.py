@@ -43,7 +43,8 @@ class FootballPodcastAgent:
     # Node 1: Fetch Matches
     def fetch_matches_node(self, state: AgentState):
         print("--- [FootballPodcastAgent] Node: fetch_matches_node ---")
-        today = datetime.now().strftime("%Y-%m-%d")
+        # Use a fixed date known to have PL matches to test the pipeline end-to-end
+        today = "2024-05-19"  # Final day of 23/24 PL season
         try:
             result = get_matches_by_date(today, DEFAULT_COMPETITIONS)
             matches_list = result.get("matches", [])
@@ -58,25 +59,25 @@ class FootballPodcastAgent:
         print("--- [FootballPodcastAgent] Node: search_news_node ---")
         matches_data = state.get("matches", {})
         matches_list = matches_data.get("matches", [])
-        
+
         if not matches_list:
-            return {"news": ["No matches found today."]}
-        
+            print("--- [FootballPodcastAgent] No matches today — stopping pipeline. ---")
+            return {"news": []}  # empty → conditional edge exits to END
+
         all_news = []
         for match in matches_list:
             home = match.get('homeTeam', {}).get('name', 'Unknown')
             away = match.get('awayTeam', {}).get('name', 'Unknown')
             score = f"{match.get('score', {}).get('fullTime', {}).get('home', '?')}-{match.get('score', {}).get('fullTime', {}).get('away', '?')}"
-            
+
             match_summary = f"Match: {home} vs {away}. Result: {score}."
             all_news.append(match_summary)
-            
-            # Fetch recent news related to this match
+
             query = f"{home} vs {away} football news"
             news_snippets = search_football_news(query, max_results=3)
             if news_snippets:
                 all_news.append(f"Latest news around {home} vs {away}:\n{news_snippets}")
-        
+
         return {"news": all_news}
 
     # Node 3: Generate Script
@@ -84,8 +85,7 @@ class FootballPodcastAgent:
         print("--- [FootballPodcastAgent] Node: generate_script_node ---")
         context = "\n".join(state.get("news", []))
 
-        prompt = f"""
-You are writing a script for a football podcast hosted by two presenters:
+        prompt = f"""You are writing a script for a football podcast hosted by two presenters:
   ALEX  — the authoritative lead anchor, calm and analytical.
   JAMIE — the enthusiastic co-host, energetic and opinionated.
 
@@ -99,18 +99,31 @@ covering today's football matches. The script should:
   4. Include opinions, hypotheticals, and light banter.
   5. Close with a sign-off from both hosts.
 
-If no matches are listed, discuss the upcoming week in football and
-what fans should look forward to.
-
 Match data:
 {context}
 
-Format EVERY line as:
-ALEX: <what Alex says>
-JAMIE: <what Jamie says>
+You MUST use these Chatterbox TTS paralinguistic tags naturally in dialogue
+(they produce real vocal sounds — use them freely where fitting):
+  [laugh]        — full laugh
+  [chuckle]      — light chuckle
+  [sigh]         — audible sigh
+  [gasp]         — sharp inhale (surprise/shock)
+  [groan]        — groan of disbelief
+  [cough]        — short cough
+  [clear throat] — throat clearing
+  [sniff]        — sniff
+  [shush]        — shushing sound
+  [yawn]         — yawn
 
-Do NOT include any stage directions, sound effects, markdown formatting,
-bold/italic markers, or anything other than the ALEX:/JAMIE: lines.
+Example of natural use:
+  JAMIE: That final-minute winner was unbelievable! [laugh] Absolute scenes at the Etihad!
+  ALEX: [clear throat] Let's keep it professional, Jamie. [chuckle] But yes — stunning.
+
+Format EVERY line exactly as:
+ALEX: <dialogue with tags>
+JAMIE: <dialogue with tags>
+
+Do NOT include markdown, bold/italic, stage directions, or anything outside the ALEX:/JAMIE: lines.
 Wrap the entire script in <script> tags.
 """
         
@@ -146,18 +159,38 @@ Wrap the entire script in <script> tags.
             print(f"--- [FootballPodcastAgent] Error in generate_script_node: {e} ---")
             return {"script": "", "errors": state.get("errors", []) + [f"Error generating script: {str(e)}"]}
 
-    @staticmethod
-    def _clean_segment_for_tts(text: str) -> str:
-        """Clean a single speaker segment for TTS (no speaker labels present)."""
-        # Remove any stray XML/HTML tags
+    # Canonical set of Chatterbox Turbo paralinguistic tags — MUST survive cleaning
+    _PARALINGUISTIC_TAGS = re.compile(
+        r'(\[(?:laugh|chuckle|sigh|cough|gasp|groan|sniff|shush|clear throat|yawn)\])',
+        re.IGNORECASE,
+    )
+
+    @classmethod
+    def _clean_segment_for_tts(cls, text: str) -> str:
+        """Clean a single speaker segment for TTS, preserving paralinguistic [tags]."""
+        # Step 1: Temporarily replace valid paralinguistic tags with placeholders.
+        # Use null-byte sentinels so these tokens are never touched by later regexes.
+        placeholders = {}
+        def stash_tag(m):
+            key = f"\x00PTAG{len(placeholders)}\x00"
+            placeholders[key] = m.group(0)
+            return key
+        text = cls._PARALINGUISTIC_TAGS.sub(stash_tag, text)
+
+        # Step 2: Strip stray XML/HTML tags (NOT the placeholders)
         text = re.sub(r'<[^>]+>', '', text)
-        # Remove Markdown bold/italic markers
+        # Strip Markdown bold/italic
         text = re.sub(r'[*_]{1,3}(.*?)[*_]{1,3}', r'\1', text)
-        # Remove parenthetical stage directions like (laughs) or (pause)
+        # Strip parenthetical stage directions e.g. (pauses)
         text = re.sub(r'\(.*?\)', '', text)
-        # Collapse extra whitespace
-        text = re.sub(r'\s+', ' ', text)
-        return text.strip()
+        # Collapse whitespace
+        text = re.sub(r'\s+', ' ', text).strip()
+
+        # Step 3: Restore paralinguistic tags
+        for key, tag in placeholders.items():
+            text = text.replace(key, tag)
+
+        return text
 
     @staticmethod
     def _parse_script_segments(script: str) -> list:
@@ -249,7 +282,15 @@ Wrap the entire script in <script> tags.
 
         workflow.add_edge(START, "fetch_matches")
         workflow.add_edge("fetch_matches", "search_news")
-        workflow.add_edge("search_news", "generate_script")
+
+        # Conditional: if no matches/news found, skip script + TTS and go straight to END
+        def _route_after_news(state: AgentState) -> str:
+            if not state.get("news"):
+                print("--- [FootballPodcastAgent] No news — routing to END. ---")
+                return END
+            return "generate_script"
+
+        workflow.add_conditional_edges("search_news", _route_after_news)
         workflow.add_edge("generate_script", "tts")
         workflow.add_edge("tts", END)
 
