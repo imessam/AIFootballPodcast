@@ -102,8 +102,7 @@ covering today's football matches. The script should:
 Match data:
 {context}
 
-You MUST use these Chatterbox TTS paralinguistic tags naturally in dialogue
-(they produce real vocal sounds — use them freely where fitting):
+You should use these Chatterbox TTS paralinguistic tags SPARINGLY and only when they truly enhance the natural flow of the conversation. Do NOT overuse them:
   [laugh]        — full laugh
   [chuckle]      — light chuckle
   [sigh]         — audible sigh

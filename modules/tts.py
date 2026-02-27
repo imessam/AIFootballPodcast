@@ -3,6 +3,8 @@ import asyncio
 from pathlib import Path
 from datetime import datetime
 
+from chatterbox.tts_turbo import ChatterboxTurboTTS
+import torch
 # ---------------------------------------------------------------------------
 # Paralinguistic tags supported by ChatterboxTurboTTS (Llama tokenizer)
 # These are passed through directly in text — do NOT strip them.
@@ -52,7 +54,7 @@ _VOICE_FILES = {
 _HF_VOICES_REPO = "ResembleAI/chatterbox"   # fallback — we use LibriSpeech below
 
 # Silence inserted between speaker turns (seconds)
-SPEAKER_PAUSE_SECS = 0.4
+SPEAKER_PAUSE_SECS = 0.15
 
 
 class TTSManager:
@@ -64,12 +66,22 @@ class TTSManager:
     _device = None
 
     @classmethod
+    def trim_silence(cls, wav: torch.Tensor, threshold: float = 0.01) -> torch.Tensor:
+        """Trims leading and trailing silence from a waveform tensor [1, T]."""
+        mask = wav.abs() > threshold
+        if not mask.any():
+            return wav
+        indices = torch.nonzero(mask, as_tuple=False)
+        start = indices[0, 1]
+        end = indices[-1, 1]
+        return wav[:, start : end + 1]
+
+    @classmethod
     def get_model(cls):
         """Loads and returns the ChatterboxTurboTTS model (Singleton)."""
         if cls._model is None:
             try:
-                from chatterbox.tts_turbo import ChatterboxTurboTTS
-                import torch
+                
 
                 cls._device = "cuda" if torch.cuda.is_available() else "cpu"
                 print(f"--- [TTSManager] Loading ChatterboxTurboTTS on {cls._device}... ---")
@@ -248,7 +260,11 @@ class TTSManager:
                 wav_cpu = wav.cpu()
                 if wav_cpu.dim() == 1:
                     wav_cpu = wav_cpu.unsqueeze(0)
-                audio_chunks.append(wav_cpu)
+                
+                # Trim silence from the segment to avoid "long empty stops"
+                wav_trimmed = cls.trim_silence(wav_cpu)
+                audio_chunks.append(wav_trimmed)
+                
                 if i < len(segments) - 1:
                     audio_chunks.append(silence)
             except Exception as e:
